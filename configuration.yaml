@@ -84,5 +84,14 @@ utility_meter:
 #-------------------------------------------------------------------------------      
 # GitHub Commit Shell
 # Added with Claude.ai on 20 Aug 2025
-#shell_command:
-#  git_commit: '/config/scripts/git_commit.sh'
+shell_command:
+  git_commit: '/config/scripts/git_commit.sh'
+#-------------------------------------------------------------------------------
+# Security Logging
+# Added with Claude.ai on 20 Aug 2025
+logger:
+  default: info
+  logs:
+    homeassistant.components.websocket_api: debug
+    homeassistant.components.http.ban: warning
+    custom_components: warning

@@ -1,0 +1,220 @@
+# Security Monitoring Package
+# Added with Claude.ai on 20 Aug 2025
+# Created: {{ now().strftime('%Y-%m-%d') }}
+
+# ==============================================================================
+# SECURITY SENSORS
+# ==============================================================================
+
+binary_sensor:
+  # Monitor for suspicious component activity
+  - platform: template
+    sensors:
+      security_suspicious_activity:
+        friendly_name: "Suspicious Security Activity"
+        value_template: >
+          {% set recent_logs = states('sensor.security_log_monitor') %}
+          {{ 'config_editor' in recent_logs or 'directory_traversal' in recent_logs }}
+        icon_template: >
+          {% if is_state('binary_sensor.security_suspicious_activity', 'on') %}
+            mdi:shield-alert
+          {% else %}
+            mdi:shield-check
+          {% endif %}
+
+      # Monitor failed login attempts
+      security_failed_logins:
+        friendly_name: "Failed Login Attempts Detected"
+        value_template: >
+          {% set recent_logs = states('sensor.security_log_monitor') %}
+          {{ 'invalid authentication' in recent_logs.lower() or 'login attempt' in recent_logs.lower() }}
+
+sensor:
+  # System monitoring for security
+  - platform: systemmonitor
+    resources:
+      - type: network_in
+        arg: eth0
+      - type: network_out  
+        arg: eth0
+      - type: processor_use
+      - type: memory_use_percent
+
+  # Command line sensor to monitor security logs
+  - platform: command_line
+    name: "Security Log Monitor"
+    command: 'tail -100 /config/home-assistant.log | grep -E "(config_editor|websocket|invalid|failed|unauthorized|error)" | tail -10'
+    scan_interval: 60  # Check every minute
+
+  # Monitor WebSocket connections
+  - platform: command_line
+    name: "Active WebSocket Connections"
+    command: 'grep "websocket" /config/home-assistant.log | tail -5'
+    scan_interval: 300  # Check every 5 minutes
+
+  # File modification monitor
+  - platform: command_line
+    name: "Recent File Changes"
+    command: 'find /config -name "*.yaml" -mmin -60 | wc -l'
+    scan_interval: 300
+    unit_of_measurement: "files"
+
+# ==============================================================================
+# SECURITY AUTOMATIONS
+# ==============================================================================
+
+automation:
+  # Alert on config_editor activity (before removal)
+  - id: 'security_config_editor_activity'
+    alias: 'Security: config_editor Activity Detected'
+    description: 'Alert when config_editor component is accessed'
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.security_suspicious_activity
+        to: 'on'
+      - platform: event
+        event_type: system_log_event
+        event_data:
+          name: homeassistant.components.websocket_api
+    condition:
+      - condition: template
+        value_template: >
+          {{ 'config_editor' in trigger.event.data.message | default('') or
+             'config_editor' in states('sensor.security_log_monitor') }}
+    action:
+      - service: notify.telegram
+        data:
+          title: "🚨 CRITICAL SECURITY ALERT"
+          message: >
+            config_editor component activity detected!
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+            Trigger: {{ trigger.event.data.message | default('Sensor Detection') }}
+            Action: Investigate immediately and consider removing component
+      - service: persistent_notification.create
+        data:
+          title: "Security Alert"
+          message: "config_editor activity detected - check logs immediately"
+          notification_id: "security_config_editor"
+
+  # Reset counters daily
+  - id: 'security_reset_daily_counters'
+    alias: 'Security: Reset Daily Counters'
+    trigger:
+      - platform: time
+        at: "00:00:01"
+    action:
+      - service: counter.reset
+        target:
+          entity_id:
+            - counter.security_failed_logins_count
+            - counter.security_suspicious_events_count        
+
+  # Monitor failed authentication attempts  
+  - id: 'security_failed_auth_monitor'
+    alias: 'Security: Failed Authentication Monitor'
+    description: 'Alert on multiple failed login attempts'
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.security_failed_logins
+        to: 'on'
+    action:
+      - service: notify.telegram
+        data:
+          title: "🔒 Security Notice"
+          message: >
+            Failed authentication attempts detected
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+            Check logs: {{ states('sensor.security_log_monitor') }}
+
+  # Alert on unusual network activity
+  - id: 'security_network_monitor'
+    alias: 'Security: Unusual Network Activity'
+    description: 'Monitor for unusual network traffic patterns'
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.network_in_eth0
+        above: 100  # MB - adjust based on your normal usage
+        for:
+          minutes: 5
+    condition:
+      # Only trigger during quiet hours
+      - condition: time
+        after: "22:00:00"
+        before: "06:00:00"
+    action:
+      - service: notify.telegram
+        data:
+          title: "📡 Network Security Alert" 
+          message: >
+            Unusual network activity detected during quiet hours
+            Traffic: {{ states('sensor.network_in_eth0') }} MB
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+
+  # Monitor file system changes
+  - id: 'security_file_changes'
+    alias: 'Security: Configuration File Changes'
+    description: 'Alert when configuration files are modified unexpectedly'
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.recent_file_changes
+        above: 3  # More than 3 files changed in an hour
+    condition:
+      # Don't trigger during your typical editing hours
+      - condition: time
+        after: "01:00:00"
+        before: "07:00:00"
+    action:
+      - service: notify.telegram
+        data:
+          title: "📁 File System Alert"
+          message: >
+            {{ states('sensor.recent_file_changes') }} configuration files modified during off-hours
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+            Review changes immediately
+
+  # Daily security summary
+  - id: 'security_daily_report'
+    alias: 'Security: Daily Security Report'
+    description: 'Daily summary of security events'
+    trigger:
+      - platform: time
+        at: "08:00:00"  # Adjust to your preferred time
+    action:
+      - service: notify.telegram
+        data:
+          title: "🛡️ Daily Security Report"
+          message: >
+            Security Status Summary:
+            
+            Failed Logins: {{ 'Detected' if is_state('binary_sensor.security_failed_logins', 'on') else 'None' }}
+            Suspicious Activity: {{ 'Detected' if is_state('binary_sensor.security_suspicious_activity', 'on') else 'None' }}
+            Files Modified (24h): {{ states('sensor.recent_file_changes') }}
+            System Load: {{ states('sensor.processor_use') }}%
+            
+            Have a secure day! 🔒
+
+# ==============================================================================
+# SECURITY DASHBOARD ELEMENTS
+# ==============================================================================
+
+input_boolean:
+  security_monitoring_enabled:
+    name: "Security Monitoring Active"
+    icon: mdi:shield-check
+
+  security_high_alert_mode:
+    name: "High Alert Security Mode"
+    icon: mdi:shield-alert
+
+# For tracking security events
+counter:
+  security_failed_logins_count:
+    name: "Failed Login Attempts Today"
+    icon: mdi:account-alert
+    step: 1
+
+  security_suspicious_events_count:
+    name: "Suspicious Events Today"  
+    icon: mdi:alert-circle
+    step: 1
+

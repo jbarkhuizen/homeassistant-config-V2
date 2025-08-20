@@ -1,0 +1,24 @@
+# In configuration.yaml or packages/backup.yaml
+recorder:
+  purge_keep_days: 7  # Reduce database size
+  include:
+    domains:
+      - sensor
+      - switch
+      - automation
+    entity_globs:
+      - "sensor.deyeinverter*"
+      - "sensor.prepaid*"
+
+# Add backup automation
+automation:
+  - alias: "Weekly Config Backup"
+    trigger:
+      platform: time
+      at: "13:00:00"
+    condition:
+      condition: time
+      weekday:
+        - mon
+    action:
+      service: backup.create
