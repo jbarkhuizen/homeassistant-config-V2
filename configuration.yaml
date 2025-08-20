@@ -9,6 +9,8 @@ frontend:
 automation: !include automations.yaml
 script: !include scripts.yaml
 scene: !include scenes.yaml
+template: !include template.yaml    #we include template file here, soon replaced by packages folder
+template: !include template_MasterSlave_System.yaml  #change the config file depending on your system
 #-------------------------------------------------------------------------------
 # Sunsynk Inclusions
 # Added on 7 Aug 2025 @ 13h16 by JB
@@ -81,3 +83,7 @@ utility_meter:
     cycle:
       daily
 #-------------------------------------------------------------------------------      
+# GitHub Commit Shell
+# Added with Claude.ai on 20 Aug 2025
+shell_command:
+  git_commit: '/config/scripts/git_commit.sh'
