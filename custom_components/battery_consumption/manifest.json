@@ -1,0 +1,10 @@
+{
+  "domain": "battery_consumption",
+  "name": "battery_consumption",
+  "codeowners": ["@jugla"],
+  "documentation": "https://github.com/jugla/battery_consumption",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/jugla/battery_consumption/issues",
+  "requirements": [],
+  "version": "2.1.0"
+}

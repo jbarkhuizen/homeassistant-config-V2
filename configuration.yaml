@@ -1,0 +1,83 @@
+#Initial Config
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+#-------------------------------------------------------------------------------
+# Sunsynk Inclusions
+# Added on 7 Aug 2025 @ 13h16 by JB
+homeassistant: 
+packages: !include_dir_named packages
+#-------------------------------------------------------------------------------
+# Sunsynk Inclusions
+# Added on 7 Aug 2025 @ 13h16 by JB
+# Telegram Bot config now in packages/telegram.yaml
+
+# The sensor below keeps the minimum soc of the battery for the last 12 hours,
+#only removed from DeyeSolarDesktop, not important
+# sensor:
+#   - platform: statistics
+#     name: "min_soc_battery"
+#     entity_id: sensor.deyeinverter_battery_soc
+#     state_characteristic: value_min
+#     max_age:
+#       hours: 12
+#     sampling_size: 144
+
+#These entries below define data fields to store the TimeOfUse values on home_assistant side
+#The automation will take a change in value and populate the value on the inverter accordingly
+input_datetime:
+  timezone1_time:
+    name: Timezone 1 Time
+    has_date: false
+    has_time: true
+  timezone2_time:
+    name: Timezone 2 Time
+    has_date: false
+    has_time: true
+  timezone3_time:
+    name: Timezone 3 Time
+    has_date: false
+    has_time: true
+  timezone4_time:
+    name: Timezone 4 Time
+    has_date: false
+    has_time: true
+  timezone5_time:
+    name: Timezone 5 Time
+    has_date: false
+    has_time: true
+  timezone6_time:
+    name: Timezone 6 Time
+    has_date: false
+    has_time: true
+
+sensor:
+  - platform: integration
+    name: deyeinvertermaster_summary_total_battery_charge_grid
+    source: sensor.deyeinvertermaster_battery_charge_grid_power
+    method: left
+
+  - platform: integration
+    name: deyeinverterslave_summary_total_battery_charge_grid
+    source: sensor.deyeinverterslave_battery_charge_grid_power
+    method: left
+
+utility_meter:
+  master_energy_battery_charge_grid:
+    name: deyeinvertermaster_summary_day_battery_charge_grid
+    source: sensor.deyeinvertermaster_summary_total_battery_charge_grid
+    cycle: daily
+
+  slave_energy_battery_charge_grid:
+    name: deyeinverterslave_summary_day_battery_charge_grid
+    source: sensor.deyeinverterslave_summary_total_battery_charge_grid
+    cycle:
+      daily
+#-------------------------------------------------------------------------------      

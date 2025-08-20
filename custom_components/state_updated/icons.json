@@ -1,0 +1,17 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "state_updated": {
+        "default": "mdi:state-machine"
+      }
+    }
+  },
+  "services": {
+    "reset_all": {
+      "service": "mdi:close-circle-multiple-outline"
+    },
+    "reset_entity": {
+      "service": "mdi:close-circle-outline"
+    }
+  }
+}

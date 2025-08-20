@@ -1,0 +1,17 @@
+{
+    "domain": "apex",
+    "name": "Apex",
+    "codeowners": ["@itchannel"],
+    "config_flow": true,
+    "dependencies": [],
+    "documentation": "https://github.com/itchannel/apex-ha",
+    "homekit": {},
+    "integration_type": "device",
+    "iot_class": "local_polling",
+    "issue_tracker": "https://github.com/itchannel/apex-ha/issues",
+    "loggers": ["custom_components.apex"],
+    "requirements": [],
+    "ssdp": [],
+    "version": "1.16",
+    "zeroconf": []
+  }

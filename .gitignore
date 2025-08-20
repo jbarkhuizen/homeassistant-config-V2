@@ -1,0 +1,185 @@
+# Home Assistant Specific
+*.log
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-journal
+OZW_Log.txt
+home-assistant.log*
+home-assistant_v2.db*
+
+# Critical - Secrets and sensitive data
+secrets.yaml
+known_devices.yaml
+ip_bans.yaml
+.cloud/
+.storage/
+.google.token
+.uuid
+.HA_VERSION
+
+# Configuration entries (contains device IDs and tokens)
+.config_entries.json
+
+# Authentication and certificates
+*.conf
+*.crt
+*.csr
+*.key
+*.pem
+*.p12
+
+# Temporary files and cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+pip-selfcheck.json
+.tmp/
+
+# Directories to ignore completely
+deps/
+tts/
+www/snapshots/
+addons/
+ssl/
+share/
+backup/
+media/
+
+# HACS (Home Assistant Community Store)
+/custom_components/hacs/
+/www/community/
+
+# Integration-specific sensitive files
+.spotify-token-cache
+.ring_cache.pickle
+.google_calendars.yaml
+
+# Zwavejs2mqtt
+zwavejs2mqtt/
+
+# Node-RED flows (if they contain sensitive data)
+flows.json
+flows_cred.json
+
+# Grafana data
+grafana/
+
+# InfluxDB data
+influxdb/
+
+# Your specific integrations that might have sensitive data
+# IDS Hyyp credentials
+custom_components/ids_hyyp/credentials.json
+
+# Any backup files
+*.bak
+*.backup
+*.old
+
+# IDE specific
+.vscode/
+.idea/
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml# Home Assistant Specific
+*.log
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-journal
+OZW_Log.txt
+home-assistant.log*
+home-assistant_v2.db*
+
+# Critical - Secrets and sensitive data
+secrets.yaml
+known_devices.yaml
+ip_bans.yaml
+.cloud/
+.storage/
+.google.token
+.uuid
+.HA_VERSION
+
+# Configuration entries (contains device IDs and tokens)
+.config_entries.json
+
+# Authentication and certificates
+*.conf
+*.crt
+*.csr
+*.key
+*.pem
+*.p12
+
+# Temporary files and cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+pip-selfcheck.json
+.tmp/
+
+# Directories to ignore completely
+deps/
+tts/
+www/snapshots/
+addons/
+ssl/
+share/
+backup/
+media/
+
+# HACS (Home Assistant Community Store)
+/custom_components/hacs/
+/www/community/
+
+# Integration-specific sensitive files
+.spotify-token-cache
+.ring_cache.pickle
+.google_calendars.yaml
+
+# Zwavejs2mqtt
+zwavejs2mqtt/
+
+# Node-RED flows (if they contain sensitive data)
+flows.json
+flows_cred.json
+
+# Grafana data
+grafana/
+
+# InfluxDB data
+influxdb/
+
+# Your specific integrations that might have sensitive data
+# IDS Hyyp credentials
+custom_components/ids_hyyp/credentials.json
+
+# Any backup files
+*.bak
+*.backup
+*.old
+
+# IDE specific
+.vscode/
+.idea/
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml

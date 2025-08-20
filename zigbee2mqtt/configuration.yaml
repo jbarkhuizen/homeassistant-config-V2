@@ -1,0 +1,19 @@
+version: 4
+mqtt:
+  base_topic: zigbee2mqtt
+  server: mqtt://core-mosquitto:1883
+  user: addons
+  password: vi6thie6shahngaiX8eigh0Ook1seo5Cohqu6sooy9phei3eigh4quohK7lai4ie
+serial: {}
+advanced:
+  log_level: info
+  channel: 11
+  network_key: GENERATE
+  pan_id: GENERATE
+  ext_pan_id: GENERATE
+frontend:
+  enabled: true
+  port: 8099
+homeassistant:
+  enabled: true
+onboarding: true

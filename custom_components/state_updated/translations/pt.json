@@ -1,0 +1,99 @@
+{
+  "title": "Estado atualizado",
+  "entity_component": {
+    "_": {
+      "name": "Estado atualizado"
+    }
+  },
+  "config": {
+    "abort": {
+      "already_configured": "Dispositivo já configurado"
+    },
+    "error": {
+      "missing_selection": "Nada selecionado",
+      "unknown": "Erro desconhecido"
+    },
+    "step": {
+      "user": {
+        "title": "Auxiliar de estado atualizado",
+        "description": "O auxiliar de estado atualizado permite criar um sensor binário que mostra se um estado ou um atributo de estado de outra entidade foi alterado. Os valores novos e antigos estão disponíveis até serem marcados como não alterados.",
+        "data": {
+          "name": "Nome. Se vazio, o nome do ID da entidade é usado",
+          "entity_id": "Entidade que este sensor rastreia"
+        }
+      },
+      "user_extra": {
+        "title": "Auxiliar de estado atualizado",
+        "data": {
+          "attribute": "Atributo da entidade que este sensor rastreia",
+          "icon": "Ícone",
+          "device_id": "Selecione um dispositivo para vincular esta entidade",
+          "clear_update_after_hours": "Limpar atualizações após",
+          "text_template": "Define um modelo para criar o atributo de texto. Valores = new_value, old_value, entity_id, attribute e last_updated",
+          "default_text_template": "Estado da Entidade {{ entity_id }} alterado de {{ old_value }} para {{ new_value }}."
+        }
+      }
+    }
+  },
+  "options": {
+    "abort": {
+      "already_configured": "Dispositivo já configurado"
+    },
+    "error": {
+      "missing_selection": "Nada selecionado",
+      "unknown": "Erro desconhecido"
+    },
+    "step": {
+      "init": {
+        "data": {
+          "attribute": "Atributo da entidade que este sensor rastreia",
+          "icon": "Ícone",
+          "device_id": "Selecione um dispositivo para vincular esta entidade",
+          "clear_update_after_hours": "Limpar atualizações após",
+          "text_template": "Define um modelo para criar o atributo de texto. Valores = new_value, old_value, entity_id, attribute e last_updated",
+          "default_text_template": "Estado da Entidade {{ entity_id }} alterado de {{ old_value }} para {{ new_value }}."
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "state_updated": {
+        "state_attributes": {
+          "new_value": {
+            "name": "Novo valor"
+          },
+          "old_value": {
+            "name": "Valor antigo"
+          },
+          "last_updated": {
+            "name": "Última atualização"
+          },
+          "text": {
+            "name": "Texto"
+          }
+        }
+      }
+    }
+  },
+  "issues": {
+    "missing_entity": {
+      "description": "Parece que a entidade `{entity}` foi excluída ou removida, e está a ser utilizada no auxiliar de estado atualizado `{state_updated_helper}`. \n\n Por favor, corrija este problema.",
+      "title": "Auxiliar de estado atualizado: Entidade excluída ou renomeada"
+    },
+    "template_error": {
+      "description": "A renderização do modelo `{template}` termina em erro.\nErro: `{error_txt}` \n\n Por favor, corrija este problema.",
+      "title": "Atualizações PyPi: Erro de modelo"
+    }
+  },
+  "services": {
+    "reset_entity": {
+      "description": "Redefinir a entidade de estado atualizado escolhida.",
+      "name": "Redefinir entidade"
+    },
+    "reset_all": {
+      "description": "Redefinir todas as entidades de estado atualizado.",
+      "name": "Redefinir tudo"
+    }
+  }
+}

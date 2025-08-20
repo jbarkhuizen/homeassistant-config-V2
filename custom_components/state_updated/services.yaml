@@ -1,0 +1,17 @@
+# Service ID
+reset_all:
+  # Service name as shown in UI
+#  name: Reset all
+# Description of the service
+#  description: Reset state updated for all entities.
+reset_entity:
+  target:
+    entity:
+      integration: state_updated
+      # domain: state_updated
+  # fields:
+  #   command:
+  #     required: true
+  #     example: "HOME"
+  #     selector:
+  #       text:

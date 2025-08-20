@@ -1,0 +1,99 @@
+{
+  "title": "Tilstand opdateret",
+  "entity_component": {
+    "_": {
+      "name": "Tilstand opdateret"
+    }
+  },
+  "config": {
+    "abort": {
+      "already_configured": "Enhed er allerede konfigureret"
+    },
+    "error": {
+      "missing_selection": "Intet valgt",
+      "unknown": "Uventet fejl"
+    },
+    "step": {
+      "user": {
+        "title": "Tilstand opdateret hjælper",
+        "description": "Tilstand opdateret hjælperen opretter en binær sensor som viser tilstanden eller tilstands attribut når denne ændres. Ny og gammel værdi er tilgængelig indtil den binære sensor bliver nulstillet",
+        "data": {
+          "name": "Navn. Hvis blank bruges entitet id navn",
+          "entity_id": "Entitet som sensoren sporer"
+        }
+      },
+      "user_extra": {
+        "title": "Tilstand opdateret hjælper",
+        "data": {
+          "attribute": "Entitets attribut for entitet som spores",
+          "icon": "Ikon",
+          "device_id": "Vælg den enhed, der skal linkes til denne entitet",
+          "clear_update_after_hours": "Nulstil opdatering efter",
+          "text_template": "Definerer en skabelon til at danne tekst attributen. Værdier = new_value, old_value, entity_id, attribute og last_updated",
+          "default_text_template": "Entitet {{ entity_id }} tilstand er ændret fra {{ old_value }} til {{ new_value }}."
+        }
+      }
+    }
+  },
+  "options": {
+    "abort": {
+      "already_configured": "Enhed er allerede konfigureret"
+    },
+    "error": {
+      "missing_selection": "Intet valgt",
+      "unknown": "Uventet fejl"
+    },
+    "step": {
+      "init": {
+        "data": {
+          "attribute": "Entitets attribut for entitet som spores",
+          "icon": "Ikon",
+          "device_id": "Vælg den enhed, der skal linkes til denne entitet",
+          "clear_update_after_hours": "Nulstil opdatering efter",
+          "text_template": "Definerer en skabelon til at danne tekst attributen. Værdier = new_value, old_value, entity_id, attribute og last_updated",
+          "default_text_template": "Entitet {{ entity_id }} tilstand er ændret fra {{ old_value }} til {{ new_value }}."
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "state_updated": {
+        "state_attributes": {
+          "new_value": {
+            "name": "Ny værdi"
+          },
+          "old_value": {
+            "name": "Gammel værdi"
+          },
+          "last_updated": {
+            "name": "Sidste opdatering"
+          },
+          "text": {
+            "name": "Tekst"
+          }
+        }
+      }
+    }
+  },
+  "issues": {
+    "missing_entity": {
+      "description": "Det ser ud til at enten er entitet `{entity}` blevet slettet eller omdøbt, som bruges af Tilstand opdateret hjælper `{state_updated_helper}`. \n\n Venligst ret problemet.",
+      "title": "Tilstand opdateret hjælper: Entitet slettet eller omdøbt"
+    },
+    "template_error": {
+      "description": "Behandling af skabelon `{template}` fejler.\nFejl: `{error_txt}` \n\n Venligst ret dette problem.",
+      "title": "Pypi opdateringer: Skabelon fejl"
+    }
+  },
+  "services": {
+    "reset_entity": {
+      "description": "Reset valgte tilstand opdateret entitet.",
+      "name": "Reset entitet"
+    },
+    "reset_all": {
+      "description": "Reset alle tilstand opdateret entiteter.",
+      "name": "Reset alt"
+    }
+  }
+}

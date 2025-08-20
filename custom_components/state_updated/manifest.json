@@ -1,0 +1,22 @@
+{
+  "domain": "state_updated",
+  "name": "State updated",
+  "codeowners": [
+    "@kgn3400"
+  ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/kgn3400/state_updated",
+  "homekit": {},
+  "integration_type": "helper",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/kgn3400/state_updated/issues",
+  "requirements": [
+    "jsonpickle",
+    "aiofiles",
+    "orjson"
+  ],
+  "ssdp": [],
+  "version": "1.0.22",
+  "zeroconf": []
+}
