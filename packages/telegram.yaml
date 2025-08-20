@@ -1,0 +1,13 @@
+# Notifier
+notify:
+  - platform: telegram
+    name: "Home Assistant"
+    chat_id: -1002014412698
+
+# Automatically migrated to the UI
+# Commented out on 20 Aug 2025
+#    telegram_bot:
+#  - platform: polling
+#    api_key: !secret telegram_api
+#    allowed_chat_ids:
+#      - -1002014412698
