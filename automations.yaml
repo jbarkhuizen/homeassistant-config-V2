@@ -20,3 +20,26 @@
       entity_id: input_number.prepaid_meter_inverter_total_units
   mode: single
   #-------------------------------------------------------------------------------
+# GitHub commit
+# Added on 20 aug 2025 @ 11h18 with Claude.ai
+- id: 'git_auto_commit'
+  alias: 'Auto Commit HA Config to GitHub'
+  description: 'Automatically commit Home Assistant configuration changes to GitHub'
+  trigger:
+    # Daily commit at 2 AM
+    - platform: time
+      at: '02:00:00'
+    # Commit after Home Assistant restarts (after 5 minutes uptime)
+    - platform: numeric_state
+      entity_id: sensor.uptime
+      above: 5
+  condition:
+    # Ensure Home Assistant has been running for at least 5 minutes
+    - condition: numeric_state
+      entity_id: sensor.uptime
+      above: 5
+  action:
+    - service: shell_command.git_commit
+      data: {}
+  mode: single
+#-------------------------------------------------------------------------------  
