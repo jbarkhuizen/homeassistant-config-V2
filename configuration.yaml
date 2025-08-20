@@ -80,10 +80,9 @@ utility_meter:
   slave_energy_battery_charge_grid:
     name: deyeinverterslave_summary_day_battery_charge_grid
     source: sensor.deyeinverterslave_summary_total_battery_charge_grid
-    cycle:
-      daily
+    cycle: daily
 #-------------------------------------------------------------------------------      
 # GitHub Commit Shell
 # Added with Claude.ai on 20 Aug 2025
-shell_command:
-  git_commit: '/config/scripts/git_commit.sh'
+#shell_command:
+#  git_commit: '/config/scripts/git_commit.sh'

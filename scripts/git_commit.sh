@@ -1,6 +1,12 @@
 #!/bin/bash
 cd /config
 
+# Check if git is configured
+if ! git config user.name > /dev/null; then
+    git config user.name "jbarkhuizen@gmail.com"
+    git config user.email "jbarkhuizen@gmail.com"
+fi
+
 # Add all changes
 git add .
 
@@ -10,11 +16,15 @@ if git diff --staged --quiet; then
     exit 0
 fi
 
-# Create commit with timestamp
+# Create more descriptive commit message
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
-git commit -m "Auto-commit: Configuration update - $TIMESTAMP"
+CHANGED_FILES=$(git diff --staged --name-only | wc -l)
+git commit -m "Auto-commit: $CHANGED_FILES file(s) updated - $TIMESTAMP"
 
-# Push to GitHub
-git push origin main
-
-echo "Configuration successfully committed and pushed to GitHub"
+# Push with error handling
+if git push origin main; then
+    echo "Configuration successfully committed and pushed to GitHub"
+else
+    echo "Failed to push to GitHub - check network/credentials"
+    exit 1
+fi

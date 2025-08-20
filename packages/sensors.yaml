@@ -1,15 +1,15 @@
 # Add to manage Time for GitHub
 # Added with Claude.ai on 20 Aug 2025
 
-sensor:
-  - platform: uptime
-    name: Uptime
-    unit_of_measurement: minutes
+#sensor:
+#  - platform: uptime
+#    name: Uptime
+#    unit_of_measurement: minutes
 
-  - platform: systemmonitor
-    resources:
-      - type: processor_use
-      - type: memory_use_percent
-      - type: disk_use_percent
-        arg: /
-      - type: last_boot
+#  - platform: systemmonitor
+#    resources:
+#      - type: processor_use
+#      - type: memory_use_percent
+#      - type: disk_use_percent
+#        arg: /
+#      - type: last_boot
