@@ -1,6 +1,13 @@
 # Include your solar and system data
 influxdb:  
-  include:
+    host: localhost
+    port: 8086
+    database: home_assistant
+    username: Johanba
+    password: Linandi00
+    max_retries: 3
+    default_measurement: state
+    include:
       domains:
         - sensor
         - binary_sensor
@@ -17,7 +24,7 @@ influxdb:
         - "sensor.*battery*"
         
     # Exclude noisy entities
-  exclude:
+    exclude:
       entities:
         - sensor.time
         - sensor.date
@@ -25,7 +32,7 @@ influxdb:
         - "automation.*"
 
     # Add tags for better organization
-  tags:
+    tags:
       source: home_assistant
       location: pretoria
       system: solar_monitoring

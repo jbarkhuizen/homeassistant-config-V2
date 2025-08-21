@@ -1,0 +1,4 @@
+# Add by Co-Pilot to creates a sensor whose state is a list of all sensor entity IDs
+    - name: "sensor_list"
+      state: "{{ states.sensor | map(attribute='entity_id') | list }}"
+#-------------------------------------------------------------------------------

@@ -1,11 +1,22 @@
 #Initial Config
 # Loads default set of integrations. Do not remove.
 default_config:
-
+#-------------------------------------------------------------------------------
+# Text to speech default config
+tts:
+  - platform: google_translate  
+#-------------------------------------------------------------------------------  
 # Load frontend themes from the themes folder
 frontend:
   themes: !include_dir_merge_named themes
-
+#-------------------------------------------------------------------------------  
+http:
+  cors_allowed_origins:
+    - "http://localhost"
+    - "http://127.0.0.1"
+    - "http://192.168.1.30"
+  use_x_frame_options: false    
+#-------------------------------------------------------------------------------
 automation: !include automations.yaml
 script: !include scripts.yaml
 scene: !include scenes.yaml
@@ -31,34 +42,6 @@ homeassistant:
 #     max_age:
 #       hours: 12
 #     sampling_size: 144
-
-#These entries below define data fields to store the TimeOfUse values on home_assistant side
-#The automation will take a change in value and populate the value on the inverter accordingly
-input_datetime:
-  timezone1_time:
-    name: Timezone 1 Time
-    has_date: false
-    has_time: true
-  timezone2_time:
-    name: Timezone 2 Time
-    has_date: false
-    has_time: true
-  timezone3_time:
-    name: Timezone 3 Time
-    has_date: false
-    has_time: true
-  timezone4_time:
-    name: Timezone 4 Time
-    has_date: false
-    has_time: true
-  timezone5_time:
-    name: Timezone 5 Time
-    has_date: false
-    has_time: true
-  timezone6_time:
-    name: Timezone 6 Time
-    has_date: false
-    has_time: true
 
 sensor:
   - platform: integration
@@ -86,6 +69,8 @@ utility_meter:
 # Added with Claude.ai on 20 Aug 2025
 shell_command:
   git_commit: '/config/scripts/git_commit.sh'
+  export_sensor_list: >
+    bash -c "hass-cli entity list | grep ^sensor. > /config/sensor_list.txt"
 #-------------------------------------------------------------------------------
 # Security Logging
 # Added with Claude.ai on 20 Aug 2025
@@ -95,8 +80,7 @@ logger:
     homeassistant.components.websocket_api: debug
     homeassistant.components.http.ban: warning
     custom_components: warning
+    homeassistant.components.smtp: debug
+    homeassistant.components.notify: debug
+    homeassistant.components.automation: info
 #-------------------------------------------------------------------------------
-influxdb:
-  host: localhost
-  port: 8086
-  database: home_assistant      
