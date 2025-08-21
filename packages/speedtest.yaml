@@ -167,9 +167,10 @@ automation:
       - service: counter.increment
         target:
           entity_id: counter.internet_alerts_today
-      - service: notify.telegram
+      - service: 
+        notify.telegram
         data:
-          title: "🌐 Internet Speed Alert"
+          title: " Internet Speed Alert"
           message: >
             Internet speed is slow!
             

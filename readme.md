@@ -6,7 +6,7 @@ This repository contains my Home Assistant configuration files.
 - **Home Assistant Version**: Latest (Auto-updating)
 - **Installation Type**: Home Assistant OS
 - **Hardware**: [Your hardware details]
-- **Static IP**: 192.168.1.146:8123
+- **Static IP**: 192.168.1.30:8123
 
 ## Installed Add-ons
 - InfluxDB
