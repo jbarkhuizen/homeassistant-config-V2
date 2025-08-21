@@ -1,0 +1,32 @@
+# Include your solar and system data
+influxdb:  
+  include:
+      domains:
+        - sensor
+        - binary_sensor
+      entity_globs:
+        # Your Sunsynk/Deye inverters
+        - "sensor.deyeinvertermaster_*"
+        - "sensor.deyeinverterslave_*"
+        # Prepaid meter
+        - "sensor.prepaid_*"
+        - "input_number.prepaid_*"
+        # Energy monitoring
+        - "sensor.*energy*"
+        - "sensor.*power*"
+        - "sensor.*battery*"
+        
+    # Exclude noisy entities
+  exclude:
+      entities:
+        - sensor.time
+        - sensor.date
+      entity_globs:
+        - "automation.*"
+
+    # Add tags for better organization
+  tags:
+      source: home_assistant
+      location: pretoria
+      system: solar_monitoring
+    

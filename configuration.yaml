@@ -95,3 +95,8 @@ logger:
     homeassistant.components.websocket_api: debug
     homeassistant.components.http.ban: warning
     custom_components: warning
+#-------------------------------------------------------------------------------
+influxdb:
+  host: localhost
+  port: 8086
+  database: home_assistant      
