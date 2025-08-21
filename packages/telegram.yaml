@@ -1,7 +1,7 @@
 # Notifier
 notify:
   - platform: telegram
-    name: "Home Assistant"
+    name: "telegram"
     chat_id: -1002014412698
 
 # Automatically migrated to the UI

@@ -22,6 +22,10 @@ influxdb:
         - "sensor.*energy*"
         - "sensor.*power*"
         - "sensor.*battery*"
+        # Add speed test entities
+        - "sensor.cloudflare_speed_test_*"
+        - "sensor.speedtest_*"
+        - "binary_sensor.speedtest_*"
         
     # Exclude noisy entities
     exclude:

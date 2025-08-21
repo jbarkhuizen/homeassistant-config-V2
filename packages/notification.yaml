@@ -10,3 +10,15 @@ notify:
     password: !secret gmail_token
     recipient: jbarkhuizen@gmail.com
     sender_name: Home Assistant Notification Alert
+
+  - name: email_alerts_speedtest
+    platform: smtp
+    server: smtp.gmail.com
+    port: 587  # Adjust as needed - common ports are 587 (TLS) or 465 (SSL)
+    timeout: 15
+    sender: jbarkhuizen@gmail.com
+    encryption: starttls  # Options: starttls, ssl
+    username: jbarkhuizen@gmail.com
+    password: !secret gmail_token
+    recipient: jbarkhuizen@gmail.com
+    sender_name: "Home Assistant Speed Monitor"  

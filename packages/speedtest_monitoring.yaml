@@ -1,0 +1,67 @@
+# Internet Speed Monitoring Package
+# File: /config/packages/internet_monitoring.yaml
+
+homeassistant:
+  customize:
+    sensor.download_speed_efficiency:
+      friendly_name: "Download Speed Efficiency"
+
+sensor:
+  - platform: template
+    sensors:
+      download_speed_efficiency:
+        friendly_name: "Download Speed Efficiency"
+        unit_of_measurement: "%"
+        value_template: >
+          {% set actual = states('sensor.cloudflare_speed_test_90th_percentile_down') | float(0) %}
+          {% set expected = 100 %}
+          {{ ((actual / expected) * 100) | round(1) if expected > 0 else 0 }}
+        icon_template: mdi:speedometer
+
+      connection_quality_grade:
+        friendly_name: "Connection Quality Grade"
+        value_template: >
+          {% set download = states('sensor.cloudflare_speed_test_90th_percentile_down') | float(0) %}
+          {% set latency = states('sensor.cloudflare_speed_test_latency') | float(100) %}
+          {% if download >= 80 and latency <= 30 %}
+            Excellent
+          {% elif download >= 50 and latency <= 50 %}
+            Good
+          {% elif download >= 25 %}
+            Fair
+          {% else %}
+            Poor
+          {% endif %}
+        icon_template: mdi:signal-cellular-3
+
+binary_sensor:
+  - platform: template
+    sensors:
+      internet_connection_degraded:
+        friendly_name: "Internet Connection Degraded"
+        value_template: >
+          {{ states('sensor.cloudflare_speed_test_90th_percentile_down') | float(0) < 50 }}
+        icon_template: >
+          {% if is_state('binary_sensor.internet_connection_degraded', 'on') %}
+            mdi:wifi-strength-1-alert
+          {% else %}
+            mdi:wifi-strength-4
+          {% endif %}
+
+automation:
+  - id: internet_speed_alert
+    alias: "Internet: Speed Alert"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.internet_connection_degraded
+        to: "on"
+        for:
+          minutes: 5
+    action:
+      - service: notify.telegram
+        data:
+          title: "🌐 Internet Speed Alert"
+          message: >
+            Internet speed has dropped below 50 Mbps!
+            Current: {{ states('sensor.cloudflare_speed_test_90th_percentile_down') }} Mbps
+            Quality: {{ states('sensor.connection_quality_grade') }}
