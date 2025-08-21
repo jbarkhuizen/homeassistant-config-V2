@@ -109,3 +109,54 @@
             • Consider ISP contact if persistent issues
             
             🔗 Dashboard: http://192.168.1.30:8123/lovelace/speedtest  
+#-------------------------------------------------------------------------------
+# Git Sync Monitoring and Automatic Backup
+- alias: "GitHub Sync - Daily Backup"
+  description: "Automatically commit and push configuration changes daily"
+  trigger:
+    - platform: time
+      at: "02:00:00"  # Run at 2 AM daily
+  action:
+    - service: shell_command.git_commit
+    - delay: "00:01:00"  # Wait 1 minute
+    - service: notify.persistent_notification
+      data:
+        title: "GitHub Sync"
+        message: "Daily backup completed at {{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+
+- alias: "GitHub Sync - On Configuration Change"
+  description: "Commit changes when important files are modified"
+  trigger:
+    - platform: event
+      event_type: folder_watcher
+      event_data:
+        event_type: modified
+        path: "/config/configuration.yaml"
+    - platform: event
+      event_type: folder_watcher
+      event_data:
+        event_type: modified
+        path: "/config/automations.yaml"
+    - platform: event
+      event_type: folder_watcher
+      event_data:
+        event_type: modified
+        path: "/config/scripts.yaml"
+  action:
+    - delay: "00:00:30"  # Wait 30 seconds for file writes to complete
+    - service: shell_command.git_commit
+
+- alias: "GitHub Sync - Notification on Failure"
+  description: "Notify when git sync fails"
+  trigger:
+    - platform: event
+      event_type: shell_command
+      event_data:
+        entity_id: shell_command.git_commit
+        result: "error"
+  action:
+    - service: notify.persistent_notification
+      data:
+        title: "GitHub Sync Failed"
+        message: "Failed to sync configuration to GitHub. Check logs for details."
+        notification_id: "git_sync_failure"  
