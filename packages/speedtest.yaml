@@ -1,0 +1,199 @@
+# Working Speed Test Package
+# File: /config/packages/speedtest_fixed.yaml
+
+# ==============================================================================
+# TEMPLATE SENSORS USING EXISTING CLOUDFLARE ENTITIES
+# ==============================================================================
+
+sensor:
+  - platform: template
+    sensors:
+      internet_download_speed:
+        friendly_name: "Internet Download Speed"
+        unit_of_measurement: "Mbps"
+        value_template: "{{ states('sensor.cloudflare_speed_test_90th_percentile_down') }}"
+        icon_template: mdi:download-network
+
+      internet_upload_speed:
+        friendly_name: "Internet Upload Speed"
+        unit_of_measurement: "Mbps"
+        value_template: "{{ states('sensor.cloudflare_speed_test_90th_percentile_up') }}"
+        icon_template: mdi:upload-network
+
+      internet_quality_grade:
+        friendly_name: "Internet Quality Grade"
+        value_template: >
+          {% set download = states('sensor.cloudflare_speed_test_90th_percentile_down') | float(0) %}
+          {% set latency = states('sensor.cloudflare_speed_test_latency') | float(100) %}
+          {% if download >= 80 and latency <= 30 %}
+            Excellent
+          {% elif download >= 50 and latency <= 50 %}
+            Good
+          {% elif download >= 25 and latency <= 70 %}
+            Fair
+          {% else %}
+            Poor
+          {% endif %}
+        icon_template: >
+          {% set grade = states('sensor.internet_quality_grade') %}
+          {% if grade == 'Excellent' %}
+            mdi:signal-cellular-3
+          {% elif grade == 'Good' %}
+            mdi:signal-cellular-2
+          {% elif grade == 'Fair' %}
+            mdi:signal-cellular-1
+          {% else %}
+            mdi:signal-cellular-outline
+          {% endif %}
+
+      internet_speed_efficiency:
+        friendly_name: "Internet Speed Efficiency"
+        unit_of_measurement: "%"
+        value_template: >
+          {% set actual = states('sensor.cloudflare_speed_test_90th_percentile_down') | float(0) %}
+          {% set expected = 100 %}  
+          {{ ((actual / expected) * 100) | round(1) if expected > 0 else 0 }}
+        icon_template: mdi:speedometer
+
+  # Statistics for averages
+  - platform: statistics
+    name: "Internet Download 24h Average"
+    entity_id: sensor.cloudflare_speed_test_90th_percentile_down
+    state_characteristic: mean
+    max_age:
+      hours: 24
+    precision: 1
+
+  - platform: statistics
+    name: "Internet Upload 24h Average"
+    entity_id: sensor.cloudflare_speed_test_90th_percentile_up
+    state_characteristic: mean
+    max_age:
+      hours: 24
+    precision: 1
+
+# ==============================================================================
+# BINARY SENSORS FOR ALERTS
+# ==============================================================================
+
+binary_sensor:
+  - platform: template
+    sensors:
+      internet_speed_slow:
+        friendly_name: "Internet Speed Slow"
+        value_template: >
+          {{ states('sensor.cloudflare_speed_test_90th_percentile_down') | float(0) < 50 }}
+        icon_template: >
+          {% if is_state('binary_sensor.internet_speed_slow', 'on') %}
+            mdi:wifi-strength-1-alert
+          {% else %}
+            mdi:wifi-strength-4
+          {% endif %}
+
+      internet_high_latency:
+        friendly_name: "Internet High Latency"
+        value_template: >
+          {{ states('sensor.cloudflare_speed_test_latency') | float(0) > 60 }}
+        icon_template: mdi:timer-alert-outline
+
+# ==============================================================================
+# INPUT NUMBERS FOR THRESHOLDS
+# ==============================================================================
+
+input_number:
+  internet_download_threshold:
+    name: "Internet Download Threshold"
+    min: 1
+    max: 1000
+    step: 1
+    unit_of_measurement: "Mbps"
+    icon: mdi:speedometer-slow
+    initial: 50
+
+  internet_upload_threshold:
+    name: "Internet Upload Threshold"
+    min: 1
+    max: 1000
+    step: 1
+    unit_of_measurement: "Mbps"
+    icon: mdi:speedometer-slow
+    initial: 10
+
+  internet_latency_threshold:
+    name: "Internet Latency Threshold"
+    min: 1
+    max: 200
+    step: 1
+    unit_of_measurement: "ms"
+    icon: mdi:timer-outline
+    initial: 60
+
+# ==============================================================================
+# SIMPLE COUNTER
+# ==============================================================================
+
+counter:
+  internet_alerts_today:
+    name: "Internet Alerts Today"
+    icon: mdi:alert-circle
+    step: 1
+
+# ==============================================================================
+# BASIC AUTOMATION
+# ==============================================================================
+
+automation:
+  # Reset counter daily
+  - id: internet_reset_daily_counter
+    alias: "Internet: Reset Daily Counter"
+    trigger:
+      - platform: time
+        at: "00:00:01"
+    action:
+      - service: counter.reset
+        target:
+          entity_id: counter.internet_alerts_today
+
+  # Simple speed alert
+  - id: internet_speed_alert_simple
+    alias: "Internet: Speed Alert"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.internet_speed_slow
+        to: "on"
+        for:
+          minutes: 5
+    action:
+      - service: counter.increment
+        target:
+          entity_id: counter.internet_alerts_today
+      - service: notify.telegram
+        data:
+          title: "🌐 Internet Speed Alert"
+          message: >
+            Internet speed is slow!
+            
+            Download: {{ states('sensor.cloudflare_speed_test_90th_percentile_down') }} Mbps
+            Upload: {{ states('sensor.cloudflare_speed_test_90th_percentile_up') }} Mbps
+            Latency: {{ states('sensor.cloudflare_speed_test_latency') }} ms
+            Quality: {{ states('sensor.internet_quality_grade') }}
+            
+            Time: {{ now().strftime('%H:%M:%S') }}
+
+  # Recovery notification
+  - id: internet_speed_recovery
+    alias: "Internet: Speed Recovery"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.internet_speed_slow
+        to: "off"
+        for:
+          minutes: 10
+    action:
+      - service: notify.telegram
+        data:
+          title: "✅ Internet Speed Recovered"
+          message: >
+            Internet speed has returned to normal!
+            Download: {{ states('sensor.cloudflare_speed_test_90th_percentile_down') }} Mbps
+            Quality: {{ states('sensor.internet_quality_grade') }}
