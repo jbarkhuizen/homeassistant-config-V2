@@ -82,3 +82,30 @@
   mode: single
 
 #-------------------------------------------------------------------------------
+# Speedtest Review
+#Added by Claude.ai on 21 Aug 2025  
+- alias: 'Weekly Speed Test Review'
+  trigger:
+      - platform: time
+        at: "09:00:00"
+  condition:
+        - condition: time
+          weekday: [sun]
+  action:
+      - service: notify.email_alerts
+        data:
+          title: "Weekly Internet Performance Review"
+          message: |
+            Weekly Performance Summary:
+            
+            📊 This Week's Averages:
+            • Download: {{ states('sensor.download_speed_24h_average') }} Mbps
+            • Upload: {{ states('sensor.upload_speed_24h_average') }} Mbps
+            • Quality Grade: {{ states('sensor.speedtest_connection_quality') }}
+            
+            🔍 Recommendations:
+            • Check Grafana for detailed trends
+            • Review any alert patterns
+            • Consider ISP contact if persistent issues
+            
+            🔗 Dashboard: http://192.168.1.30:8123/lovelace/speedtest  

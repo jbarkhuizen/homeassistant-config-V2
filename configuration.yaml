@@ -71,6 +71,8 @@ shell_command:
   git_commit: '/config/scripts/git_commit.sh'
   export_sensor_list: >
     bash -c "hass-cli entity list | grep ^sensor. > /config/sensor_list.txt"
+  update_readme: '/config/scripts/update_readme.sh'
+
 #-------------------------------------------------------------------------------
 # Security Logging
 # Added with Claude.ai on 20 Aug 2025
