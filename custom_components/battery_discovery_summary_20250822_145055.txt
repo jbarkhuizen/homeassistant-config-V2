@@ -1,0 +1,55 @@
+🔋 BATTERY DEVICE DISCOVERY SUMMARY
+==================================================
+Generated: 2025-08-22 14:50:55
+Home Assistant: http://192.168.1.30:8123
+Total Devices Found: 31
+
+📁 GENERATED FILES:
+• JSON Report: battery_discovery_report_20250822_145055.json
+• YAML Automations: battery_automations_20250822_145055.yaml
+• This Summary: battery_discovery_summary_20250822_145055.txt
+
+📱 DEVICE CATEGORIES:
+• Mobile Devices: 4 devices
+  - SM-G996B Battery level: 86% 🟢 GOOD
+  - SM-G996B Battery temperature: 29.1% 🟢 GOOD
+  - SM-G996B Battery power: 0.0% 🔴 CRITICAL
+  - SM-G996B Battery cycle count: 0% 🔴 CRITICAL
+
+• Sonoff Devices: 11 devices
+  - SNZB-05P Battery: unavailable% 🟢 GOOD
+  - Gang Motion Sensor Battery: unavailable% 🟢 GOOD
+  - Power Room Temperature/Humidity Sensor Battery: unavailable% 🟢 GOOD
+  - Back Door Sensor Battery: unavailable% 🟢 GOOD
+  - Front Door Sensor Battery: unavailable% 🟢 GOOD
+  - Bedroom Temperature/Humidity Sensor Battery: unavailable% 🟢 GOOD
+  - Salon Front Door Sensor Battery Voltage: 2.715% 🔴 CRITICAL
+  - Braai Door Sensor Battery Voltage: 2.944% 🔴 CRITICAL
+  - Garage Mid Door Sensor Battery Voltage: 2.258% 🔴 CRITICAL
+  - 5 Door Battery: 35% 🟢 GOOD
+  - Study Window 1 Battery: 100% 🟢 GOOD
+
+• Other Devices: 16 devices
+  - Battery Notification Stats: 0% 🔴 CRITICAL
+  - Total Battery Alerts Sent: 0% 🔴 CRITICAL
+  - Battery Alerts Today: 0% 🔴 CRITICAL
+  - deyeinvertermaster_summary_day_battery_charge_grid: 0% 🔴 CRITICAL
+  - deyeinverterslave_summary_day_battery_charge_grid: 0% 🔴 CRITICAL
+  - DeyeInverterMaster Battery SOC: unavailable% 🟢 GOOD
+  - DeyeInverterMaster Battery Shutdown: unavailable% 🟢 GOOD
+  - DeyeInverterMaster Battery Low warning: unavailable% 🟢 GOOD
+  - DeyeInverterMaster Battery Restart: unavailable% 🟢 GOOD
+  - Temperature/Humidity Sensor Battery: unavailable% 🟢 GOOD
+  - Temperature/Humidity Sensor Battery: unavailable% 🟢 GOOD
+  - Motion Sensor Battery: unavailable% 🟢 GOOD
+  - SNZB-05P Battery: unavailable% 🟢 GOOD
+  - Battery Critical Threshold: 15.0% 🔴 CRITICAL
+  - Battery Low Threshold: 25.0% 🟡 LOW
+  - Battery Warning Threshold: 40.0% 🟢 GOOD
+
+🔧 NEXT STEPS:
+1. Copy battery_monitoring.yaml to packages/ folder
+2. Add entity includes to recorder and InfluxDB configs
+3. Set up battery dashboard in Lovelace
+4. Test notifications using dashboard buttons
+5. Access dashboard: http://192.168.1.30:8123/lovelace/battery-monitoring
