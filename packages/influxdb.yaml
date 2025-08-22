@@ -42,6 +42,10 @@ influxdb:
         - "binary_sensor.system_*"
         - "sensor.cpu_usage_*"
         - "sensor.memory_usage_*"
+        # Battery Management
+        - "sensor.*battery*"
+        - "sensor.battery_status_summary"
+        - "binary_sensor.battery_*_alert"
 # ==============================================================================
     # Exclude noisy entities
 # ==============================================================================

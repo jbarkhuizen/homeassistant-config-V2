@@ -1,0 +1,393 @@
+# Additional battery automations for specific devices
+automation:
+  - id: battery_alert_sensor_sm_g996b_battery_level
+    alias: "Battery Alert: SM-G996B Battery level"
+    description: "Alert when SM-G996B Battery level battery is low"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.sm_g996b_battery_level
+        below: 20
+        for:
+          minutes: 30
+    condition:
+      - condition: state
+        entity_id: input_boolean.battery_alerts_enabled
+        state: 'on'
+    action:
+      - service: notify.email
+        data:
+          title: "🔋 Battery Alert: SM-G996B Battery level"
+          message: >
+            SM-G996B Battery level battery is at {{ states('sensor.sm_g996b_battery_level') }}%
+            
+            Please charge or replace the battery soon.
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+      - service: notify.telegram
+        data:
+          title: "🔋 SM-G996B Battery level Battery Low"
+          message: "Battery level: {{ states('sensor.sm_g996b_battery_level') }}%"
+
+  - id: battery_alert_sensor_sm_g996b_battery_temperature
+    alias: "Battery Alert: SM-G996B Battery temperature"
+    description: "Alert when SM-G996B Battery temperature battery is low"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.sm_g996b_battery_temperature
+        below: 20
+        for:
+          minutes: 30
+    condition:
+      - condition: state
+        entity_id: input_boolean.battery_alerts_enabled
+        state: 'on'
+    action:
+      - service: notify.email
+        data:
+          title: "🔋 Battery Alert: SM-G996B Battery temperature"
+          message: >
+            SM-G996B Battery temperature battery is at {{ states('sensor.sm_g996b_battery_temperature') }}%
+            
+            Please charge or replace the battery soon.
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+      - service: notify.telegram
+        data:
+          title: "🔋 SM-G996B Battery temperature Battery Low"
+          message: "Battery level: {{ states('sensor.sm_g996b_battery_temperature') }}%"
+
+  - id: battery_alert_sensor_sm_g996b_battery_cycle_count
+    alias: "Battery Alert: SM-G996B Battery cycle count"
+    description: "Alert when SM-G996B Battery cycle count battery is low"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.sm_g996b_battery_cycle_count
+        below: 20
+        for:
+          minutes: 30
+    condition:
+      - condition: state
+        entity_id: input_boolean.battery_alerts_enabled
+        state: 'on'
+    action:
+      - service: notify.email
+        data:
+          title: "🔋 Battery Alert: SM-G996B Battery cycle count"
+          message: >
+            SM-G996B Battery cycle count battery is at {{ states('sensor.sm_g996b_battery_cycle_count') }}%
+            
+            Please charge or replace the battery soon.
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+      - service: notify.telegram
+        data:
+          title: "🔋 SM-G996B Battery cycle count Battery Low"
+          message: "Battery level: {{ states('sensor.sm_g996b_battery_cycle_count') }}%"
+
+  - id: battery_alert_sensor_sonoff_a4800e446e_battery
+    alias: "Battery Alert: SNZB-05P Battery"
+    description: "Alert when SNZB-05P Battery battery is low"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.sonoff_a4800e446e_battery
+        below: 20
+        for:
+          minutes: 30
+    condition:
+      - condition: state
+        entity_id: input_boolean.battery_alerts_enabled
+        state: 'on'
+    action:
+      - service: notify.email
+        data:
+          title: "🔋 Battery Alert: SNZB-05P Battery"
+          message: >
+            SNZB-05P Battery battery is at {{ states('sensor.sonoff_a4800e446e_battery') }}%
+            
+            Please charge or replace the battery soon.
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+      - service: notify.telegram
+        data:
+          title: "🔋 SNZB-05P Battery Battery Low"
+          message: "Battery level: {{ states('sensor.sonoff_a4800e446e_battery') }}%"
+
+  - id: battery_alert_sensor_sonoff_a48005596e_battery
+    alias: "Battery Alert: Gang Motion Sensor Battery"
+    description: "Alert when Gang Motion Sensor Battery battery is low"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.sonoff_a48005596e_battery
+        below: 20
+        for:
+          minutes: 30
+    condition:
+      - condition: state
+        entity_id: input_boolean.battery_alerts_enabled
+        state: 'on'
+    action:
+      - service: notify.email
+        data:
+          title: "🔋 Battery Alert: Gang Motion Sensor Battery"
+          message: >
+            Gang Motion Sensor Battery battery is at {{ states('sensor.sonoff_a48005596e_battery') }}%
+            
+            Please charge or replace the battery soon.
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+      - service: notify.telegram
+        data:
+          title: "🔋 Gang Motion Sensor Battery Battery Low"
+          message: "Battery level: {{ states('sensor.sonoff_a48005596e_battery') }}%"
+
+  - id: battery_alert_sensor_sonoff_a48008e4cc_battery
+    alias: "Battery Alert: Power Room Temperature/Humidity Sensor Battery"
+    description: "Alert when Power Room Temperature/Humidity Sensor Battery battery is low"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.sonoff_a48008e4cc_battery
+        below: 20
+        for:
+          minutes: 30
+    condition:
+      - condition: state
+        entity_id: input_boolean.battery_alerts_enabled
+        state: 'on'
+    action:
+      - service: notify.email
+        data:
+          title: "🔋 Battery Alert: Power Room Temperature/Humidity Sensor Battery"
+          message: >
+            Power Room Temperature/Humidity Sensor Battery battery is at {{ states('sensor.sonoff_a48008e4cc_battery') }}%
+            
+            Please charge or replace the battery soon.
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+      - service: notify.telegram
+        data:
+          title: "🔋 Power Room Temperature/Humidity Sensor Battery Battery Low"
+          message: "Battery level: {{ states('sensor.sonoff_a48008e4cc_battery') }}%"
+
+  - id: battery_alert_sensor_sonoff_a4800d7025_battery
+    alias: "Battery Alert: Back Door Sensor Battery"
+    description: "Alert when Back Door Sensor Battery battery is low"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.sonoff_a4800d7025_battery
+        below: 20
+        for:
+          minutes: 30
+    condition:
+      - condition: state
+        entity_id: input_boolean.battery_alerts_enabled
+        state: 'on'
+    action:
+      - service: notify.email
+        data:
+          title: "🔋 Battery Alert: Back Door Sensor Battery"
+          message: >
+            Back Door Sensor Battery battery is at {{ states('sensor.sonoff_a4800d7025_battery') }}%
+            
+            Please charge or replace the battery soon.
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+      - service: notify.telegram
+        data:
+          title: "🔋 Back Door Sensor Battery Battery Low"
+          message: "Battery level: {{ states('sensor.sonoff_a4800d7025_battery') }}%"
+
+  - id: battery_alert_sensor_sonoff_a480098890_battery
+    alias: "Battery Alert: Front Door Sensor Battery"
+    description: "Alert when Front Door Sensor Battery battery is low"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.sonoff_a480098890_battery
+        below: 20
+        for:
+          minutes: 30
+    condition:
+      - condition: state
+        entity_id: input_boolean.battery_alerts_enabled
+        state: 'on'
+    action:
+      - service: notify.email
+        data:
+          title: "🔋 Battery Alert: Front Door Sensor Battery"
+          message: >
+            Front Door Sensor Battery battery is at {{ states('sensor.sonoff_a480098890_battery') }}%
+            
+            Please charge or replace the battery soon.
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+      - service: notify.telegram
+        data:
+          title: "🔋 Front Door Sensor Battery Battery Low"
+          message: "Battery level: {{ states('sensor.sonoff_a480098890_battery') }}%"
+
+  - id: battery_alert_sensor_sonoff_a4800986dd_battery
+    alias: "Battery Alert: Bedroom Temperature/Humidity Sensor Battery"
+    description: "Alert when Bedroom Temperature/Humidity Sensor Battery battery is low"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.sonoff_a4800986dd_battery
+        below: 20
+        for:
+          minutes: 30
+    condition:
+      - condition: state
+        entity_id: input_boolean.battery_alerts_enabled
+        state: 'on'
+    action:
+      - service: notify.email
+        data:
+          title: "🔋 Battery Alert: Bedroom Temperature/Humidity Sensor Battery"
+          message: >
+            Bedroom Temperature/Humidity Sensor Battery battery is at {{ states('sensor.sonoff_a4800986dd_battery') }}%
+            
+            Please charge or replace the battery soon.
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+      - service: notify.telegram
+        data:
+          title: "🔋 Bedroom Temperature/Humidity Sensor Battery Battery Low"
+          message: "Battery level: {{ states('sensor.sonoff_a4800986dd_battery') }}%"
+
+  - id: battery_alert_sensor_sonoff_1000fd4860_battery_voltage
+    alias: "Battery Alert: Salon Front Door Sensor Battery Voltage"
+    description: "Alert when Salon Front Door Sensor Battery Voltage battery is low"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.sonoff_1000fd4860_battery_voltage
+        below: 20
+        for:
+          minutes: 30
+    condition:
+      - condition: state
+        entity_id: input_boolean.battery_alerts_enabled
+        state: 'on'
+    action:
+      - service: notify.email
+        data:
+          title: "🔋 Battery Alert: Salon Front Door Sensor Battery Voltage"
+          message: >
+            Salon Front Door Sensor Battery Voltage battery is at {{ states('sensor.sonoff_1000fd4860_battery_voltage') }}%
+            
+            Please charge or replace the battery soon.
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+      - service: notify.telegram
+        data:
+          title: "🔋 Salon Front Door Sensor Battery Voltage Battery Low"
+          message: "Battery level: {{ states('sensor.sonoff_1000fd4860_battery_voltage') }}%"
+
+  - id: battery_alert_sensor_sonoff_100150e8d2_battery_voltage
+    alias: "Battery Alert: Braai Door Sensor Battery Voltage"
+    description: "Alert when Braai Door Sensor Battery Voltage battery is low"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.sonoff_100150e8d2_battery_voltage
+        below: 20
+        for:
+          minutes: 30
+    condition:
+      - condition: state
+        entity_id: input_boolean.battery_alerts_enabled
+        state: 'on'
+    action:
+      - service: notify.email
+        data:
+          title: "🔋 Battery Alert: Braai Door Sensor Battery Voltage"
+          message: >
+            Braai Door Sensor Battery Voltage battery is at {{ states('sensor.sonoff_100150e8d2_battery_voltage') }}%
+            
+            Please charge or replace the battery soon.
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+      - service: notify.telegram
+        data:
+          title: "🔋 Braai Door Sensor Battery Voltage Battery Low"
+          message: "Battery level: {{ states('sensor.sonoff_100150e8d2_battery_voltage') }}%"
+
+  - id: battery_alert_sensor_sonoff_100150eae4_battery_voltage
+    alias: "Battery Alert: Garage Mid Door Sensor Battery Voltage"
+    description: "Alert when Garage Mid Door Sensor Battery Voltage battery is low"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.sonoff_100150eae4_battery_voltage
+        below: 20
+        for:
+          minutes: 30
+    condition:
+      - condition: state
+        entity_id: input_boolean.battery_alerts_enabled
+        state: 'on'
+    action:
+      - service: notify.email
+        data:
+          title: "🔋 Battery Alert: Garage Mid Door Sensor Battery Voltage"
+          message: >
+            Garage Mid Door Sensor Battery Voltage battery is at {{ states('sensor.sonoff_100150eae4_battery_voltage') }}%
+            
+            Please charge or replace the battery soon.
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+      - service: notify.telegram
+        data:
+          title: "🔋 Garage Mid Door Sensor Battery Voltage Battery Low"
+          message: "Battery level: {{ states('sensor.sonoff_100150eae4_battery_voltage') }}%"
+
+  - id: battery_alert_sensor_sonoff_1002357bda_battery
+    alias: "Battery Alert: 5 Door Battery"
+    description: "Alert when 5 Door Battery battery is low"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.sonoff_1002357bda_battery
+        below: 20
+        for:
+          minutes: 30
+    condition:
+      - condition: state
+        entity_id: input_boolean.battery_alerts_enabled
+        state: 'on'
+    action:
+      - service: notify.email
+        data:
+          title: "🔋 Battery Alert: 5 Door Battery"
+          message: >
+            5 Door Battery battery is at {{ states('sensor.sonoff_1002357bda_battery') }}%
+            
+            Please charge or replace the battery soon.
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+      - service: notify.telegram
+        data:
+          title: "🔋 5 Door Battery Battery Low"
+          message: "Battery level: {{ states('sensor.sonoff_1002357bda_battery') }}%"
+
+  - id: battery_alert_sensor_sonoff_1002357619_battery
+    alias: "Battery Alert: Study Window 1 Battery"
+    description: "Alert when Study Window 1 Battery battery is low"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.sonoff_1002357619_battery
+        below: 20
+        for:
+          minutes: 30
+    condition:
+      - condition: state
+        entity_id: input_boolean.battery_alerts_enabled
+        state: 'on'
+    action:
+      - service: notify.email
+        data:
+          title: "🔋 Battery Alert: Study Window 1 Battery"
+          message: >
+            Study Window 1 Battery battery is at {{ states('sensor.sonoff_1002357619_battery') }}%
+            
+            Please charge or replace the battery soon.
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+      - service: notify.telegram
+        data:
+          title: "🔋 Study Window 1 Battery Battery Low"
+          message: "Battery level: {{ states('sensor.sonoff_1002357619_battery') }}%"
