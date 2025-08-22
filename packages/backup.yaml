@@ -1,13 +1,47 @@
 #===============================================================================
-# In configuration.yaml or packages/backup.yaml
+# Backup Configuration Package - Fixed
+# File: packages/backup.yaml
+# Updated: 2025-08-22
+# Note: Removed shell_command (it's in main configuration.yaml)
 #===============================================================================
-recorder:
-  purge_keep_days: 7  # Reduce database size
-  include:
-    domains:
-      - sensor
-      - switch
-      - automation
-    entity_globs:
-      - "sensor.deyeinverter*"
-      - "sensor.prepaid*"
+
+# Backup automation
+automation:
+  - id: 'backup_daily'
+    alias: 'Backup: Daily Configuration Backup at 09:00'
+    description: 'Create daily backup of Home Assistant configuration'
+    trigger:
+      - platform: time
+        at: '09:00:00'
+    condition:
+      - condition: state
+        entity_id: input_boolean.auto_backup_enabled
+        state: 'on'
+    action:
+      - service: shell_command.backup_config
+      - service: notify.telegram
+        data:
+          title: "💾 Daily Backup Complete"
+          message: >
+            Home Assistant configuration backup completed.
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+            Location: /backup/
+            
+            ✅ Backup successful
+
+# Input helpers for backup settings
+input_boolean:
+  auto_backup_enabled:
+    name: "Automatic Backup Enabled"
+    initial: true
+    icon: mdi:backup-restore
+
+input_number:
+  backup_retention_days:
+    name: "Backup Retention Days"
+    min: 1
+    max: 30
+    step: 1
+    initial: 7
+    icon: mdi:calendar-clock

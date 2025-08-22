@@ -1,0 +1,185 @@
+# Morning solar optimization script
+morning_solar_optimization:
+  alias: "Morning Solar Optimization"
+  description: "Optimize solar settings for the day ahead"
+  sequence:
+    - service: notify.telegram
+      data:
+        title: "🌅 Morning Solar Optimization"
+        message: >
+          Starting daily solar optimization at 09:00
+          
+          Current conditions:
+          🔋 Battery SOC: {{ states('sensor.combined_battery_soc') }}%
+          ⚡ Solar Power: {{ states('sensor.combined_solar_power') }}W
+          
+    - choose:
+        - conditions:
+            - condition: numeric_state
+              entity_id: sensor.combined_battery_soc
+              above: 80
+            - condition: numeric_state
+              entity_id: sensor.combined_solar_power
+              above: 500
+          sequence:
+            - service: select.select_option
+              data:
+                option: "Zero Export"
+              target:
+                entity_id:
+                  - select.deyeinvertermaster_load_limit_exp_ess_non_ess
+                  - select.deyeinverterslave_load_limit_exp_ess_non_ess
+            - service: notify.telegram
+              data:
+                message: "✅ Set to Zero Export - Good solar conditions and high battery"
+        - conditions:
+            - condition: numeric_state
+              entity_id: sensor.combined_battery_soc
+              below: 50
+          sequence:
+            - service: select.select_option
+              data:
+                option: "Essentials"
+              target:
+                entity_id:
+                  - select.deyeinvertermaster_load_limit_exp_ess_non_ess
+                  - select.deyeinverterslave_load_limit_exp_ess_non_ess
+            - service: notify.telegram
+              data:
+                message: "⚠️ Set to Essentials - Battery needs charging"
+      default:
+        - service: notify.telegram
+          data:
+            message: "📊 Maintaining current settings - Conditions are moderate"
+
+# Battery status check script
+battery_status_check:
+  alias: "Battery Status Check"
+  description: "Check all battery-powered devices and report status"
+  sequence:
+    - service: counter.increment
+      target:
+        entity_id: counter.battery_alerts_today
+    - variables:
+        battery_entities:
+          - sensor.temperature_humidity_sensor_battery
+          - sensor.temperature_humidity_sensor_battery_2
+          - sensor.motion_sensor_battery
+          - sensor.snzb_05p_battery
+        critical_threshold: "{{ states('input_number.battery_critical_threshold') | int }}"
+    - repeat:
+        for_each: "{{ battery_entities }}"
+        sequence:
+          - condition: template
+            value_template: "{{ states(repeat.item) not in ['unknown', 'unavailable'] }}"
+          - condition: template
+            value_template: "{{ states(repeat.item) | int <= critical_threshold }}"
+          - service: notify.telegram
+            data:
+              title: "🔋 Critical Battery Alert"
+              message: >
+                **CRITICAL:** {{ state_attr(repeat.item, 'friendly_name') }}
+                Battery Level: {{ states(repeat.item) }}%
+                Threshold: {{ critical_threshold }}%
+                
+                ⚠️ **IMMEDIATE ACTION REQUIRED**
+
+# System health check script
+system_health_check:
+  alias: "System Health Check"
+  description: "Comprehensive system health monitoring"
+  sequence:
+    - variables:
+        cpu_usage: "{{ states('sensor.processor_use') | float(0) }}"
+        memory_usage: "{{ states('sensor.memory_use_percent') | float(0) }}"
+        disk_usage: "{{ states('sensor.disk_use_percent_config') | float(0) }}"
+    - condition: template
+      value_template: >
+        {{ cpu_usage > 90 or memory_usage > 90 or disk_usage > 90 }}
+    - service: notify.telegram
+      data:
+        title: "🚨 System Health Warning"
+        message: >
+          **System resources are high:**
+          
+          🖥️ CPU: {{ cpu_usage }}%
+          💾 Memory: {{ memory_usage }}%
+          💿 Disk: {{ disk_usage }}%
+
+# Telegram status report script
+telegram_status_report:
+  alias: "Send Telegram Status Report"
+  description: "Send comprehensive status report on demand"
+  sequence:
+    - service: notify.telegram
+      data:
+        title: "📊 Manual Status Report"
+        message: >
+          **System Status:**
+          
+          🔋 **Solar System:**
+          • Combined Battery: {{ states('sensor.combined_battery_soc') }}%
+          • Solar Power: {{ states('sensor.combined_solar_power') }}W
+          • Grid Import: {{ states('sensor.total_grid_import') }}W
+          • Grid Export: {{ states('sensor.total_grid_export') }}W
+          
+          💡 **Prepaid Status:**
+          • Units Left: {{ states('sensor.prepaid_units_left') }} kWh
+          • Days Remaining: {{ states('sensor.days_until_prepaid_empty') }}
+          
+          🖥️ **System Health:**
+          • CPU Usage: {{ states('sensor.processor_use') }}%
+          • Memory Usage: {{ states('sensor.memory_use_percent') }}%
+          • Disk Usage: {{ states('sensor.disk_use_percent_config') }}%
+          
+          Generated: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+
+# Emergency test script
+telegram_emergency_test:
+  alias: "Test Emergency Notifications"
+  description: "Test emergency notification system"
+  sequence:
+    - service: notify.telegram
+      data:
+        title: "🧪 Emergency System Test"
+        message: >
+          **EMERGENCY NOTIFICATION TEST**
+          
+          This is a test of the emergency notification system.
+          
+          🔋 Battery Status: {{ states('sensor.battery_status_summary') | title }}
+          ⚡ Solar Power: {{ states('sensor.combined_solar_power') }}W
+          
+          Test completed: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+
+# Git commit script
+git_commit_config:
+  alias: "Commit Configuration to Git"
+  description: "Commit current configuration to GitHub repository"
+  sequence:
+    - service: shell_command.git_commit
+    - service: notify.telegram
+      data:
+        title: "📝 Configuration Committed"
+        message: >
+          Home Assistant configuration committed to GitHub.
+          Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+
+# Entity diagnostics script  
+run_entity_diagnostics:
+  alias: "Run Entity Diagnostics"
+  description: "Check all entities and report missing ones"
+  sequence:
+    - service: notify.telegram
+      data:
+        title: "🔍 Entity Diagnostics Complete"
+        message: >
+          **Entity Diagnostic Results:**
+          
+          🔋 Battery Entities: {{ states('sensor.battery_entities_status') }}/4 available
+          ⚡ Solar Entities: {{ 12 - (states('sensor.missing_solar_entities_report') | int) }}/12 available
+          🎛️ Helper Entities: {{ states('sensor.helper_entities_status') }}/8 available
+          
+          **Overall Status:** {{ 'All entities available ✅' if is_state('binary_sensor.all_critical_entities_available', 'on') else 'Issues detected ⚠️' }}
+          
+          Scan completed: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}

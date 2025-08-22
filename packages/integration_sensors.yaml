@@ -1,0 +1,191 @@
+#===============================================================================
+# Integration Sensors Package
+# File: packages/integration_sensors.yaml
+# Created: 2025-08-22
+# Purpose: Move integration sensors from configuration.yaml to packages
+#===============================================================================
+
+# Integration Sensors (moved from configuration.yaml)
+sensor:
+  - platform: integration
+    name: deyeinvertermaster_summary_total_battery_charge_grid
+    source: sensor.deyeinvertermaster_battery_charge_grid_power
+    method: left
+    unit_prefix: k
+    round: 2
+
+  - platform: integration
+    name: deyeinverterslave_summary_total_battery_charge_grid
+    source: sensor.deyeinverterslave_battery_charge_grid_power
+    method: left
+    unit_prefix: k
+    round: 2
+
+  # Additional integration sensors for better tracking
+  - platform: integration
+    name: deyeinvertermaster_summary_total_pv_generation
+    source: sensor.deyeinvertermaster_pv_power
+    method: left
+    unit_prefix: k
+    round: 2
+
+  - platform: integration
+    name: deyeinverterslave_summary_total_pv_generation
+    source: sensor.deyeinverterslave_pv_power
+    method: left
+    unit_prefix: k
+    round: 2
+
+  - platform: integration
+    name: deyeinvertermaster_summary_total_grid_export
+    source: sensor.deyeinvertermaster_grid_export_power
+    method: left
+    unit_prefix: k
+    round: 2
+
+  - platform: integration
+    name: deyeinverterslave_summary_total_grid_export
+    source: sensor.deyeinverterslave_grid_export_power
+    method: left
+    unit_prefix: k
+    round: 2
+
+# Utility Meters (moved from configuration.yaml)
+utility_meter:
+  master_energy_battery_charge_grid:
+    name: deyeinvertermaster_summary_day_battery_charge_grid
+    source: sensor.deyeinvertermaster_summary_total_battery_charge_grid
+    cycle: daily
+    tariffs:
+      - peak
+      - off_peak
+
+  slave_energy_battery_charge_grid:
+    name: deyeinverterslave_summary_day_battery_charge_grid
+    source: sensor.deyeinverterslave_summary_total_battery_charge_grid
+    cycle: daily
+    tariffs:
+      - peak
+      - off_peak
+
+  # Additional utility meters for comprehensive tracking
+  master_energy_pv_generation:
+    name: deyeinvertermaster_summary_day_pv_generation
+    source: sensor.deyeinvertermaster_summary_total_pv_generation
+    cycle: daily
+
+  slave_energy_pv_generation:
+    name: deyeinverterslave_summary_day_pv_generation
+    source: sensor.deyeinverterslave_summary_total_pv_generation
+    cycle: daily
+
+  master_energy_grid_export:
+    name: deyeinvertermaster_summary_day_grid_export
+    source: sensor.deyeinvertermaster_summary_total_grid_export
+    cycle: daily
+
+  slave_energy_grid_export:
+    name: deyeinverterslave_summary_day_grid_export
+    source: sensor.deyeinverterslave_summary_total_grid_export
+    cycle: daily
+
+# Template sensors for combined values
+template:
+  - sensor:
+      - name: "Combined Solar Power"
+        unit_of_measurement: "W"
+        state: >
+          {{ (states('sensor.deyeinvertermaster_pv_power') | float(0) +
+              states('sensor.deyeinverterslave_pv_power') | float(0)) | round(0) }}
+        device_class: power
+        icon: mdi:solar-power
+
+      - name: "Combined Battery SOC"
+        unit_of_measurement: "%"
+        state: >
+          {% set master_soc = states('sensor.deyeinvertermaster_battery_soc') | float(0) %}
+          {% set slave_soc = states('sensor.deyeinverterslave_battery_soc') | float(0) %}
+          {{ ((master_soc + slave_soc) / 2) | round(1) }}
+        device_class: battery
+        icon: mdi:battery
+
+      - name: "Total Grid Import"
+        unit_of_measurement: "W"
+        state: >
+          {{ (states('sensor.deyeinvertermaster_grid_import_power') | float(0) +
+              states('sensor.deyeinverterslave_grid_import_power') | float(0)) | round(0) }}
+        device_class: power
+        icon: mdi:transmission-tower-import
+
+      - name: "Total Grid Export"
+        unit_of_measurement: "W"
+        state: >
+          {{ (states('sensor.deyeinvertermaster_grid_export_power') | float(0) +
+              states('sensor.deyeinverterslave_grid_export_power') | float(0)) | round(0) }}
+        device_class: power
+        icon: mdi:transmission-tower-export
+
+      - name: "Daily Solar Generation Combined"
+        unit_of_measurement: "kWh"
+        state: >
+          {{ (states('sensor.deyeinvertermaster_summary_day_pv_generation') | float(0) +
+              states('sensor.deyeinverterslave_summary_day_pv_generation') | float(0)) | round(2) }}
+        device_class: energy
+        icon: mdi:solar-power-variant
+
+      - name: "Energy Independence Percentage"
+        unit_of_measurement: "%"
+        state: >
+          {% set solar = states('sensor.combined_solar_power') | float(0) %}
+          {% set grid = states('sensor.total_grid_import') | float(0) %}
+          {% set total = solar + grid %}
+          {% if total > 0 %}
+            {{ ((solar / total) * 100) | round(1) }}
+          {% else %}
+            0
+          {% endif %}
+        icon: mdi:leaf
+
+      # Battery efficiency calculations
+      - name: "Battery Efficiency Master"
+        unit_of_measurement: "%"
+        state: >
+          {% set charge = states('sensor.deyeinvertermaster_battery_charge_power') | float(0) %}
+          {% set discharge = states('sensor.deyeinvertermaster_battery_discharge_power') | float(0) %}
+          {% if charge > 0 %}
+            {{ ((discharge / charge) * 100) | round(1) }}
+          {% else %}
+            0
+          {% endif %}
+        icon: mdi:battery-charging
+
+      - name: "Battery Efficiency Slave"
+        unit_of_measurement: "%"
+        state: >
+          {% set charge = states('sensor.deyeinverterslave_battery_charge_power') | float(0) %}
+          {% set discharge = states('sensor.deyeinverterslave_battery_discharge_power') | float(0) %}
+          {% if charge > 0 %}
+            {{ ((discharge / charge) * 100) | round(1) }}
+          {% else %}
+            0
+          {% endif %}
+        icon: mdi:battery-charging
+
+# Record these entities in InfluxDB
+recorder:
+  include:
+    entities:
+      - sensor.deyeinvertermaster_summary_total_battery_charge_grid
+      - sensor.deyeinverterslave_summary_total_battery_charge_grid
+      - sensor.deyeinvertermaster_summary_total_pv_generation
+      - sensor.deyeinverterslave_summary_total_pv_generation
+      - sensor.deyeinvertermaster_summary_total_grid_export
+      - sensor.deyeinverterslave_summary_total_grid_export
+      - sensor.combined_solar_power
+      - sensor.combined_battery_soc
+      - sensor.total_grid_import
+      - sensor.total_grid_export
+      - sensor.daily_solar_generation_combined
+      - sensor.energy_independence_percentage
+      - sensor.battery_efficiency_master
+      - sensor.battery_efficiency_slave

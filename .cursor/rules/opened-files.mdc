@@ -5,309 +5,1417 @@ alwaysApply: true
 ---
 # Opened Files
 ## File Name
-custom_components/battery_discovery.py
+configuration.yaml
 ## File Content
-#!/usr/bin/env python3
-"""
-Battery Device Discovery Script for Home Assistant
-Run this script to discover all battery-powered devices in your HA setup
-"""
+#===============================================================================
+# Home Assistant Main Configuration
+# File: configuration.yaml
+# Updated: 2025-08-22
+# Note: Sensors moved to packages/integration_sensors.yaml
+#===============================================================================
 
-import requests
-import json
-import re
-from datetime import datetime
+# Initial Config - Loads default set of integrations. Do not remove.
+default_config:
 
-# Configuration
-HA_URL = "http://192.168.1.30:8123"  # Your HA URL
-HA_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiI1MmI5NmRkZDE1ODk0MTY0YTA5ZTBjYTRkZDRmNTAwMCIsImlhdCI6MTc1NTg2NTkyMiwiZXhwIjoyMDcxMjI1OTIyfQ.qhwcOA9gZTBKfleSiv1LL34NYeJC_ils_6-1q6Rga8Q"  # Get from HA Profile -> Long-lived access tokens
+#-------------------------------------------------------------------------------
+# Text to speech default config
+tts:
+  - platform: google_translate  
 
-# Headers for API requests
-headers = {
-    "Authorization": f"Bearer {HA_TOKEN}",
-    "Content-Type": "application/json"
-}
+#-------------------------------------------------------------------------------  
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
 
-def get_all_entities():
-    """Get all entities from Home Assistant"""
-    try:
-        response = requests.get(f"{HA_URL}/api/states", headers=headers)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching entities: {e}")
-        return []
+#-------------------------------------------------------------------------------  
+# HTTP Configuration
+http:
+  cors_allowed_origins:
+    - "http://localhost"
+    - "http://127.0.0.1"
+    - "http://192.168.1.30"
+  use_x_frame_options: false    
 
-def find_battery_entities(entities):
-    """Find all battery-related entities"""
-    battery_entities = []
-    
-    battery_patterns = [
-        r'.*battery.*',
-        r'.*_bat
-,
-        r'.*_battery_level.*',
-        r'.*_battery_percentage.*',
-        r'.*_battery_state.*',
-        r'.*_power_source.*'
-    ]
-    
-    for entity in entities:
-        entity_id = entity.get('entity_id', '')
-        
-        # Check if entity matches battery patterns
-        for pattern in battery_patterns:
-            if re.match(pattern, entity_id, re.IGNORECASE):
-                # Verify it's actually a battery sensor
-                state = entity.get('state', '')
-                attributes = entity.get('attributes', {})
+#-------------------------------------------------------------------------------
+# Include Files
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+#-------------------------------------------------------------------------------
+# Packages Configuration - Load all packages
+homeassistant: 
+  packages: !include_dir_named packages
+
+#-------------------------------------------------------------------------------
+# Shell Commands
+shell_command:
+  git_commit: '/config/scripts/git_commit.sh'
+  export_sensor_list: >
+    bash -c "hass-cli entity list | grep ^sensor."
+  restart_deye_integration: >
+    curl -X POST -H "Authorization: Bearer YOUR_TOKEN" \
+    -H "Content-Type: application/json" \
+    http://localhost:8123/api/config/config_entries/reload
+  backup_config: >
+    cp -r /config /backup/ha-config-$(date +%Y%m%d_%H%M%S)
+  check_entity_status: >
+    bash -c "hass-cli entity list | grep -E '(unknown|unavailable)'"
+
+#-------------------------------------------------------------------------------
+
+#-------------------------------------------------------------------------------
+# Recorder Configuration (Basic - Extended in packages)
+recorder:
+  # Keep 7 days of history for performance
+  purge_keep_days: 7
+  # Exclude some noisy entities
+  exclude:
+    domains:
+      - automation
+      - updater
+      - camera
+    entity_globs:
+      - sensor.time*
+      - sensor.date*
+    entities:
+      - sun.sun
+      - weather.forecast_home
+
+#-------------------------------------------------------------------------------
+# Logger Configuration
+logger:
+  default: warning
+  logs:
+    # Monitor integration issues
+    custom_components.deye_solar: info
+    custom_components.localtuya: warning
+    custom_components.battery_discovery: info
+    homeassistant.components.mqtt: warning
+    homeassistant.components.telegram_bot: info
+    # Monitor entity issues
+    homeassistant.helpers.entity: warning
+    homeassistant.helpers.template: warning
+
+#-------------------------------------------------------------------------------
+# Energy Configuration
+energy:
+  # This will be configured via UI, but we document the key entities here
+  # Grid consumption: sensor.total_grid_import
+  # Grid return: sensor.total_grid_export  
+  # Solar production: sensor.combined_solar_power
+  # Battery storage: sensor.combined_battery_soc
+
+#-------------------------------------------------------------------------------
+# Comments for removed sections:
+# - sensor: Moved to packages/integration_sensors.yaml
+# - utility_meter: Moved to packages/integration_sensors.yaml
+# - telegram_bot: Moved to packages/telegram_enhanced.yaml
+# - template: Will be in various packages as needed
+# Opened Files
+## File Name
+packages/scripts.yaml
+## File Content
+#===============================================================================
+# Scripts Configuration - Supporting Scripts for Automations
+# File: scripts.yaml
+# Updated: 2025-08-22
+#===============================================================================
+
+# Morning solar optimization script
+morning_solar_optimization:
+  alias: "Morning Solar Optimization"
+  description: "Optimize solar settings for the day ahead"
+  sequence:
+    - service: notify.telegram
+      data:
+        title: "🌅 Morning Solar Optimization"
+        message: >
+          Starting daily solar optimization at 09:00
+          
+          Current conditions:
+          🔋 Battery SOC: {{ states('sensor.combined_battery_soc') }}%
+          ⚡ Solar Power: {{ states('sensor.combined_solar_power') }}W
+          🌤️ Weather: {{ states('weather.forecast_home') if states('weather.forecast_home') != 'unknown' else 'Check manually' }}
+          
+    - choose:
+        - conditions:
+            - condition: numeric_state
+              entity_id: sensor.combined_battery_soc
+              above: 80
+            - condition: numeric_state
+              entity_id: sensor.combined_solar_power
+              above: 500
+          sequence:
+            - service: select.select_option
+              data:
+                option: "Zero Export"
+              target:
+                entity_id:
+                  - select.deyeinvertermaster_load_limit_exp_ess_non_ess
+                  - select.deyeinverterslave_load_limit_exp_ess_non_ess
+            - service: notify.telegram
+              data:
+                message: "✅ Set to Zero Export - Good solar conditions and high battery"
+        - conditions:
+            - condition: numeric_state
+              entity_id: sensor.combined_battery_soc
+              below: 50
+          sequence:
+            - service: select.select_option
+              data:
+                option: "Essentials"
+              target:
+                entity_id:
+                  - select.deyeinvertermaster_load_limit_exp_ess_non_ess
+                  - select.deyeinverterslave_load_limit_exp_ess_non_ess
+            - service: notify.telegram
+              data:
+                message: "⚠️ Set to Essentials - Battery needs charging"
+      default:
+        - service: notify.telegram
+          data:
+            message: "📊 Maintaining current settings - Conditions are moderate"
+
+# Battery status check script
+battery_status_check:
+  alias: "Battery Status Check"
+  description: "Check all battery-powered devices and report status"
+  sequence:
+    - service: counter.increment
+      target:
+        entity_id: counter.battery_alerts_today
+    - variables:
+        battery_entities:
+          - sensor.temperature_humidity_sensor_battery
+          - sensor.temperature_humidity_sensor_battery_2
+          - sensor.motion_sensor_battery
+          - sensor.snzb_05p_battery
+        critical_threshold: "{{ states('input_number.battery_critical_threshold') | int }}"
+        low_threshold: "{{ states('input_number.battery_low_threshold') | int }}"
+    - repeat:
+        for_each: "{{ battery_entities }}"
+        sequence:
+          - condition: template
+            value_template: "{{ states(repeat.item) not in ['unknown', 'unavailable'] }}"
+          - condition: template
+            value_template: "{{ states(repeat.item) | int <= critical_threshold }}"
+          - service: notify.telegram
+            data:
+              title: "🔋 Critical Battery Alert"
+              message: >
+                **CRITICAL:** {{ state_attr(repeat.item, 'friendly_name') }}
+                Battery Level: {{ states(repeat.item) }}%
+                Threshold: {{ critical_threshold }}%
                 
-                # Check if it has battery-like characteristics
-                device_class = attributes.get('device_class', '')
-                unit = attributes.get('unit_of_measurement', '')
+                ⚠️ **IMMEDIATE ACTION REQUIRED**
+                Please replace battery as soon as possible!
                 
-                if (device_class == 'battery' or 
-                    unit == '%' or 
-                    ('battery' in entity_id.lower() and 
-                     state not in ['unknown', 'unavailable', 'none', ''] and
-                     state.replace('.', '').isdigit())):
-                    
-                    battery_info = {
-                        'entity_id': entity_id,
-                        'name': attributes.get('friendly_name', entity_id),
-                        'state': state,
-                        'unit': unit,
-                        'device_class': device_class,
-                        'last_updated': entity.get('last_updated', ''),
-                        'device_info': get_device_info(attributes)
-                    }
-                    battery_entities.append(battery_info)
-                break
-    
-    return battery_entities
+                Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+          - service: counter.increment
+            target:
+              entity_id: counter.total_battery_alerts_sent
 
-def get_device_info(attributes):
-    """Extract device information from attributes"""
-    return {
-        'model': attributes.get('model', ''),
-        'manufacturer': attributes.get('manufacturer', ''),
-        'sw_version': attributes.get('sw_version', ''),
-        'hw_version': attributes.get('hw_version', ''),
-        'via_device': attributes.get('via_device', '')
-    }
+# System health check script
+system_health_check:
+  alias: "System Health Check"
+  description: "Comprehensive system health monitoring"
+  sequence:
+    - variables:
+        cpu_usage: "{{ states('sensor.processor_use') | float(0) }}"
+        memory_usage: "{{ states('sensor.memory_use_percent') | float(0) }}"
+        disk_usage: "{{ states('sensor.disk_use_percent_config') | float(0) }}"
+        cpu_temp: "{{ states('sensor.processor_temperature') | float(0) }}"
+    - condition: template
+      value_template: >
+        {{ cpu_usage > 90 or memory_usage > 90 or disk_usage > 90 or cpu_temp > 80 }}
+    - service: notify.telegram
+      data:
+        title: "🚨 System Health Warning"
+        message: >
+          **System resources are high:**
+          
+          🖥️ CPU: {{ cpu_usage }}% {{ '⚠️' if cpu_usage > 90 else '✅' }}
+          💾 Memory: {{ memory_usage }}% {{ '⚠️' if memory_usage > 90 else '✅' }}
+          💿 Disk: {{ disk_usage }}% {{ '⚠️' if disk_usage > 90 else '✅' }}
+          🌡️ Temperature: {{ cpu_temp }}°C {{ '⚠️' if cpu_temp > 80 else '✅' }}
+          
+          **Recommended Actions:**
+          {% if cpu_usage > 90 %}
+          • Check for high CPU processes
+          • Consider restarting Home Assistant
+          {% endif %}
+          {% if memory_usage > 90 %}
+          • Check memory usage in System tab
+          • Restart if necessary
+          {% endif %}
+          {% if disk_usage > 90 %}
+          • Clean up old logs and databases
+          • Check backup files
+          {% endif %}
+          {% if cpu_temp > 80 %}
+          • Check system cooling
+          • Monitor temperature trends
+          {% endif %}
 
-def categorize_devices(battery_entities):
-    """Categorize devices by type/manufacturer"""
-    categories = {
-        'mobile_devices': [],
-        'sonoff_devices': [],
-        'tuya_devices': [],
-        'zigbee_devices': [],
-        'other_devices': []
-    }
-    
-    for entity in battery_entities:
-        entity_id = entity['entity_id'].lower()
-        manufacturer = entity['device_info'].get('manufacturer', '').lower()
-        
-        if 'sm_' in entity_id or 'phone' in entity_id or 'mobile' in entity_id:
-            categories['mobile_devices'].append(entity)
-        elif 'sonoff' in entity_id or 'sonoff' in manufacturer:
-            categories['sonoff_devices'].append(entity)
-        elif 'tuya' in entity_id or 'tuya' in manufacturer:
-            categories['tuya_devices'].append(entity)
-        elif 'zigbee' in entity_id or entity['device_info'].get('via_device'):
-            categories['zigbee_devices'].append(entity)
-        else:
-            categories['other_devices'].append(entity)
-    
-    return categories
+# Telegram status report script (manual trigger)
+telegram_status_report:
+  alias: "Send Telegram Status Report"
+  description: "Send comprehensive status report on demand"
+  sequence:
+    - service: notify.telegram
+      data:
+        title: "📊 Manual Status Report"
+        message: >
+          **System Status (Requested):**
+          
+          🔋 **Solar System:**
+          • Combined Battery: {{ states('sensor.combined_battery_soc') }}%
+          • Solar Power: {{ states('sensor.combined_solar_power') }}W
+          • Grid Import: {{ states('sensor.total_grid_import') }}W
+          • Grid Export: {{ states('sensor.total_grid_export') }}W
+          • Independence: {{ states('sensor.energy_independence_percentage') }}%
+          
+          💡 **Prepaid Status:**
+          • Units Left: {{ states('sensor.prepaid_units_left') }} kWh
+          • Days Remaining: {{ states('sensor.days_until_prepaid_empty') }}
+          • Usage Today: {{ states('sensor.prepaid_usage_today') }} kWh
+          
+          🖥️ **System Health:**
+          • CPU Usage: {{ states('sensor.processor_use') }}%
+          • Memory Usage: {{ states('sensor.memory_use_percent') }}%
+          • Disk Usage: {{ states('sensor.disk_use_percent_config') }}%
+          • Uptime: {{ relative_time(states('sensor.last_boot')) }}
+          
+          🔋 **Battery Devices:**
+          • Monitored: {{ states('sensor.battery_devices_count') }} devices
+          • Status: {{ states('sensor.battery_status_summary') | title }}
+          • Critical Entities: {{ 'OK' if is_state('binary_sensor.all_critical_entities_available', 'on') else 'Issues Found' }}
+          
+          **Current Mode:**
+          • Solar Optimization: {{ 'ON' if is_state('input_boolean.solar_optimization_enabled', 'on') else 'OFF' }}
+          • Battery Alerts: {{ 'ON' if is_state('input_boolean.battery_alerts_enabled', 'on') else 'OFF' }}
+          • Load Shedding Mode: {{ 'ACTIVE' if is_state('input_boolean.load_shedding_mode', 'on') else 'STANDBY' }}
+          
+          Generated: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
 
-def generate_battery_config(categories):
-    """Generate configuration snippets for discovered devices"""
-    config = {
-        'recorder_includes': [],
-        'influxdb_includes': [],
-        'dashboard_entities': []
-    }
-    
-    for category, devices in categories.items():
-        for device in devices:
-            entity_id = device['entity_id']
-            
-            # Add to recorder includes
-            config['recorder_includes'].append(entity_id)
-            
-            # Add to InfluxDB includes
-            config['influxdb_includes'].append(entity_id)
-            
-            # Add dashboard entity
-            config['dashboard_entities'].append({
-                'entity': entity_id,
-                'name': device['name'],
-                'category': category
-            })
-    
-    return config
+# Emergency test script
+telegram_emergency_test:
+  alias: "Test Emergency Notifications"
+  description: "Test emergency notification system"
+  sequence:
+    - service: notify.telegram
+      data:
+        title: "🧪 Emergency System Test"
+        message: >
+          **EMERGENCY NOTIFICATION TEST**
+          
+          This is a test of the emergency notification system.
+          
+          🔋 Battery Status: {{ states('sensor.battery_status_summary') | title }}
+          ⚡ Solar Power: {{ states('sensor.combined_solar_power') }}W
+          🖥️ System Health: {{ 'OK' if is_state('binary_sensor.all_critical_entities_available', 'on') else 'Issues' }}
+          
+          {% if is_state('binary_sensor.all_critical_entities_available', 'off') %}
+          **Actual Issues Detected:**
+          • Missing Solar Entities: {{ states('sensor.missing_solar_entities_report') }}
+          • Battery Entities: {{ states('sensor.battery_entities_status') }}/4
+          • Helper Entities: {{ states('sensor.helper_entities_status') }}/8
+          {% else %}
+          ✅ **All systems operational during test**
+          {% endif %}
+          
+          In a real emergency, detailed instructions would be provided here.
+          
+          Test completed: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
 
-def print_discovery_report(categories, config):
-    """Print a detailed discovery report"""
-    print("=" * 80)
-    print("BATTERY DEVICE DISCOVERY REPORT")
-    print("=" * 80)
-    print(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print()
-    
-    total_devices = sum(len(devices) for devices in categories.values())
-    print(f"📊 SUMMARY: Found {total_devices} battery-powered devices")
-    print()
-    
-    for category, devices in categories.items():
-        if devices:
-            category_name = category.replace('_', ' ').title()
-            print(f"📱 {category_name}: {len(devices)} devices")
-            for device in devices:
-                level = device['state']
-                if level.replace('.', '').isdigit():
-                    level_float = float(level)
-                    if level_float <= 15:
-                        status = "🔴 CRITICAL"
-                    elif level_float <= 25:
-                        status = "🟠 LOW"
-                    elif level_float <= 40:
-                        status = "🟡 WARNING"
-                    else:
-                        status = "🟢 GOOD"
-                    print(f"   • {device['name']}: {level}% {status}")
-                else:
-                    print(f"   • {device['name']}: {level}")
-            print()
-    
-    print("🔧 CONFIGURATION SNIPPETS")
-    print("-" * 40)
-    
-    print("\n# Add to packages/battery_monitoring.yaml recorder section:")
-    print("recorder:")
-    print("  include:")
-    print("    entities:")
-    for entity in config['recorder_includes']:
-        print(f"      - {entity}")
-    
-    print("\n# Add to packages/influxdb.yaml:")
-    print("influxdb:")
-    print("  include:")
-    print("    entities:")
-    for entity in config['influxdb_includes']:
-        print(f"      - {entity}")
-    
-    print("\n# Dashboard entities found:")
-    for entity in config['dashboard_entities']:
-        print(f"# {entity['category']}: {entity['entity']} ({entity['name']})")
+# Git commit script (existing but enhanced)
+git_commit_config:
+  alias: "Commit Configuration to Git"
+  description: "Commit current configuration to GitHub repository"
+  sequence:
+    - service: shell_command.git_commit
+    - service: notify.telegram
+      data:
+        title: "📝 Configuration Committed"
+        message: >
+          Home Assistant configuration has been committed to GitHub.
+          
+          Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+          Repository: homeassistant-config-V2
+          
+          Changes include:
+          • Updated packages
+          • Fixed automation triggers
+          • Enhanced monitoring
+          
+          Backup completed successfully! ✅
 
-def generate_yaml_configs(categories):
-    """Generate complete YAML configuration files"""
+# Entity diagnostics script
+run_entity_diagnostics:
+  alias: "Run Entity Diagnostics"
+  description: "Check all entities and report missing ones"
+  sequence:
+    - service: script.turn_on
+      target:
+        entity_id: script.run_entity_diagnostics
+      data:
+        variables:
+          caller: "manual"
+    - service: notify.telegram
+      data:
+        title: "🔍 Entity Diagnostics Complete"
+        message: >
+          **Entity Diagnostic Results:**
+          
+          🔋 Battery Entities: {{ states('sensor.battery_entities_status') }}/4 available
+          ⚡ Solar Entities: {{ 12 - (states('sensor.missing_solar_entities_report') | int) }}/12 available
+          🎛️ Helper Entities: {{ states('sensor.helper_entities_status') }}/8 available
+          
+          {% if states('sensor.missing_solar_entities_report') | int > 0 %}
+          **Missing Solar Entities:**
+          {% for entity in state_attr('sensor.missing_solar_entities_report', 'missing_entities') %}
+          • {{ entity }}
+          {% endfor %}
+          {% endif %}
+          
+          {% if state_attr('sensor.helper_entities_status', 'missing_helpers') | length > 0 %}
+          **Missing Helper Entities:**
+          {% for entity in state_attr('sensor.helper_entities_status', 'missing_helpers') %}
+          • {{ entity }}
+          {% endfor %}
+          {% endif %}
+          
+          **Overall Status:** {{ 'All entities available ✅' if is_state('binary_sensor.all_critical_entities_available', 'on') else 'Issues detected ⚠️' }}
+          
+          Check Developer Tools > States for detailed entity status.
+          
+          Scan completed: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+# Opened Files
+## File Name
+packages/influxdb.yaml
+## File Content
+#===============================================================================
+# InfluxDB Configuration with System Monitoring - Updated
+# File: packages/influxdb.yaml
+# Updated: 2025-08-22
+# Added: Missing entities and new combined sensors
+#===============================================================================
+
+influxdb:  
+  host: localhost
+  port: 8086
+  database: home_assistant
+  username: !secret influxdb_username
+  password: !secret influxdb_password
+  max_retries: 3
+  default_measurement: state
+  
+  include:
+    domains:
+      - sensor
+      - binary_sensor
     
-    # Generate automations for specific devices
-    automations = []
+    entity_globs:
+      # Sunsynk/Deye inverters (existing)
+      - "sensor.deyeinvertermaster_*"
+      - "sensor.deyeinverterslave_*"
+      
+      # Prepaid meter (existing)
+      - "sensor.prepaid_*"
+      - "input_number.prepaid_*"
+      
+      # Energy monitoring (existing)
+      - "sensor.*energy*"
+      - "sensor.*power*"
+      - "sensor.*battery*"
+      
+      # Speed test entities (existing)
+      - "sensor.cloudflare_speed_test_*"
+      - "sensor.speedtest_*"
+      - "binary_sensor.speedtest_*"
+      
+      # System monitoring (existing)
+      - "sensor.processor_*"
+      - "sensor.memory_*"
+      - "sensor.disk_*"
+      - "sensor.swap_*"
+      - "sensor.system_*"
+      - "sensor.load_*"
+      - "sensor.throughput_*"
+      - "sensor.packets_*"
+      - "sensor.ipv4_*"
+      - "sensor.last_boot"
+      - "binary_sensor.system_*"
+      - "sensor.cpu_usage_*"
+      - "sensor.memory_usage_*"
+      
+      # Battery Management (enhanced)
+      - "sensor.battery_*"
+      - "binary_sensor.battery_*"
+      - "counter.battery_*"
+      - "input_number.battery_*"
+      
+      # New combined sensors
+      - "sensor.combined_*"
+      - "sensor.total_grid_*"
+      - "sensor.energy_independence_*"
+      - "sensor.daily_*"
+      - "sensor.monthly_*"
+      
+      # Helper entities monitoring
+      - "sensor.missing_*"
+      - "sensor.helper_entities_*"
+      - "binary_sensor.all_critical_*"
     
-    for category, devices in categories.items():
-        for device in devices:
-            entity_id = device['entity_id']
-            device_name = device['name']
-            
-            # Create specific automation for critical devices
-            if category in ['mobile_devices', 'sonoff_devices']:
-                automation = f"""
-  - id: battery_alert_{entity_id.replace('.', '_')}
-    alias: "Battery Alert: {device_name}"
-    description: "Alert when {device_name} battery is low"
+    entities:
+      # Specific battery sensors (from discovery)
+      - sensor.temperature_humidity_sensor_battery
+      - sensor.temperature_humidity_sensor_battery_2
+      - sensor.motion_sensor_battery
+      - sensor.snzb_05p_battery
+      
+      # Integration sensors (moved from main config)
+      - sensor.deyeinvertermaster_summary_total_battery_charge_grid
+      - sensor.deyeinverterslave_summary_total_battery_charge_grid
+      - sensor.deyeinvertermaster_summary_total_pv_generation
+      - sensor.deyeinverterslave_summary_total_pv_generation
+      - sensor.deyeinvertermaster_summary_total_grid_export
+      - sensor.deyeinverterslave_summary_total_grid_export
+      
+      # Combined template sensors
+      - sensor.combined_solar_power
+      - sensor.combined_battery_soc
+      - sensor.total_grid_import
+      - sensor.total_grid_export
+      - sensor.daily_solar_generation_combined
+      - sensor.energy_independence_percentage
+      
+      # Battery efficiency sensors
+      - sensor.battery_efficiency_master
+      - sensor.battery_efficiency_slave
+      
+      # Utility meter entities
+      - sensor.deyeinvertermaster_summary_day_battery_charge_grid
+      - sensor.deyeinverterslave_summary_day_battery_charge_grid
+      - sensor.deyeinvertermaster_summary_day_pv_generation
+      - sensor.deyeinverterslave_summary_day_pv_generation
+      - sensor.deyeinvertermaster_summary_day_grid_export
+      - sensor.deyeinverterslave_summary_day_grid_export
+# Opened Files
+## File Name
+automations.yaml
+## File Content
+#===============================================================================
+# Automations Configuration - ONLY Automations (No Scripts)
+# File: automations.yaml
+# Updated: 2025-08-22
+# Note: All scripts must be in scripts.yaml, not here
+#===============================================================================
+
+# Prepaid meter recharge automation
+- id: '1717429630744'
+  alias: 'Prepaid: Meter Recharge at 09:00'
+  description: 'Update prepaid meter reading when units are recharged'
+  trigger:
+    - platform: time
+      at: '09:00:00'
+    - platform: state
+      entity_id: input_number.prepaid_meter_units
+  condition:
+    - condition: template
+      value_template: '{{ states(''input_number.prepaid_meter_units'') | float > 0 }}'
+  action:
+    - service: input_number.set_value
+      metadata: {}
+      data:
+        value: '{{ ((states(''sensor.deyeinvertermaster_summary_total_grid_import_buy'') |
+          float(6))  * 1000.0) }}'
+      target:
+        entity_id: input_number.prepaid_meter_inverter_total_units
+    - service: notify.telegram
+      data:
+        title: "⚡ Prepaid Meter Recharged"
+        message: >
+          Units added: {{ states('input_number.prepaid_meter_units') }} kWh
+          New reading: {{ states('input_number.prepaid_meter_inverter_total_units') }}
+          Units remaining: {{ states('sensor.prepaid_units_left') }} kWh
+          Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+  mode: single
+
+# Solar inverter optimization automation
+- id: '1686299812078'
+  alias: 'Solar: Switch Export Mode at 09:00 and Sunset/Sunrise'
+  description: 'Control export to non-essentials based on solar availability'
+  trigger:
+    - platform: time
+      at: '09:00:00'
+      id: morning_check
+    - platform: sun
+      event: sunset
+      offset: -00:45:00
+      id: poweressentials
+    - platform: sun
+      event: sunrise
+      offset: 00:45:00
+      id: powernonessentials
+  condition:
+    - condition: state
+      entity_id: input_boolean.solar_optimization_enabled
+      state: 'on'
+  action:
+    - choose:
+        - conditions:
+            - condition: trigger
+              id: poweressentials
+          sequence:
+            - service: select.select_option
+              data:
+                option: Essentials
+              target:
+                entity_id: 
+                  - select.deyeinvertermaster_load_limit_exp_ess_non_ess
+                  - select.deyeinverterslave_load_limit_exp_ess_non_ess
+            - service: notify.telegram
+              data:
+                title: "🌅 Solar Mode: Essentials Only"
+                message: >
+                  Switched to Essentials mode at sunset
+                  Battery SOC: {{ states('sensor.combined_battery_soc') }}%
+                  Solar Power: {{ states('sensor.combined_solar_power') }}W
+        - conditions:
+            - condition: trigger
+              id: powernonessentials
+          sequence:
+            - service: select.select_option
+              data:
+                option: Zero Export
+              target:
+                entity_id:
+                  - select.deyeinvertermaster_load_limit_exp_ess_non_ess
+                  - select.deyeinverterslave_load_limit_exp_ess_non_ess
+            - service: notify.telegram
+              data:
+                title: "☀️ Solar Mode: Zero Export"
+                message: >
+                  Switched to Zero Export mode at sunrise
+                  Battery SOC: {{ states('sensor.combined_battery_soc') }}%
+                  Solar Power: {{ states('sensor.combined_solar_power') }}W
+        - conditions:
+            - condition: trigger
+              id: morning_check
+          sequence:
+            - service: script.morning_solar_optimization
+  mode: single
+
+# Battery monitoring automation
+- id: 'battery_monitoring_daily'
+  alias: 'Battery: Daily Monitoring Check at 09:00'
+  description: 'Daily battery status check and alerts'
+  trigger:
+    - platform: time
+      at: '09:00:00'
+  condition:
+    - condition: state
+      entity_id: input_boolean.battery_alerts_enabled
+      state: 'on'
+  action:
+    - service: script.battery_status_check
+    - condition: template
+      value_template: >
+        {{ states('sensor.battery_status_summary') in ['critical', 'low'] }}
+    - service: notify.telegram
+      data:
+        title: "🔋 Daily Battery Status Alert"
+        message: >
+          Battery Status: {{ states('sensor.battery_status_summary') | title }}
+          
+          {% for entity in ['sensor.temperature_humidity_sensor_battery', 'sensor.temperature_humidity_sensor_battery_2', 'sensor.motion_sensor_battery', 'sensor.snzb_05p_battery'] %}
+          {% if states(entity) not in ['unknown', 'unavailable'] %}
+          • {{ state_attr(entity, 'friendly_name') }}: {{ states(entity) }}%
+          {% endif %}
+          {% endfor %}
+          
+          Monitored devices: {{ states('sensor.battery_devices_count') }}
+          Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+  mode: single
+
+# System health monitoring automation
+- id: 'system_health_daily'
+  alias: 'System: Daily Health Check at 09:00'
+  description: 'Daily system health monitoring and reporting'
+  trigger:
+    - platform: time
+      at: '09:00:00'
+  action:
+    - service: script.system_health_check
+    - service: notify.telegram
+      data:
+        title: "🖥️ Daily System Health Report"
+        message: >
+          **System Health Summary:**
+          
+          🖥️ CPU Usage: {{ states('sensor.processor_use') }}%
+          💾 Memory Usage: {{ states('sensor.memory_use_percent') }}%
+          💿 Disk Usage: {{ states('sensor.disk_use_percent_config') }}%
+          ⏰ Uptime: {{ relative_time(states('sensor.last_boot')) }}
+          
+          **Solar System:**
+          🔋 Combined Battery: {{ states('sensor.combined_battery_soc') }}%
+          ⚡ Solar Power: {{ states('sensor.combined_solar_power') }}W
+          🏠 Grid Import: {{ states('sensor.total_grid_import') }}W
+          📤 Grid Export: {{ states('sensor.total_grid_export') }}W
+          
+          **Entity Status:**
+          ✅ Critical Entities: {{ 'OK' if is_state('binary_sensor.all_critical_entities_available', 'on') else 'ISSUES' }}
+          🔋 Battery Sensors: {{ states('sensor.battery_entities_status') }}/4
+          
+          {% if not is_state('binary_sensor.all_critical_entities_available', 'on') %}
+          ⚠️ **Action Required:** Some entities are unavailable.
+          {% endif %}
+  mode: single
+
+# Energy analytics automation
+- id: 'energy_analytics_daily'
+  alias: 'Energy: Daily Analytics Report at 09:00'
+  description: 'Generate daily energy analytics and savings report'
+  trigger:
+    - platform: time
+      at: '09:00:00'
+  condition:
+    - condition: state
+      entity_id: input_boolean.telegram_energy_reports
+      state: 'on'
+  action:
+    - service: notify.telegram
+      data:
+        title: "📊 Daily Energy Analytics"
+        message: >
+          **Yesterday's Energy Performance:**
+          
+          ☀️ Solar Generated: {{ states('sensor.daily_solar_generation_combined') }} kWh
+          🏠 Grid Import: {{ states('sensor.daily_grid_import_total') | float(0) | round(2) }} kWh
+          📤 Grid Export: {{ states('sensor.daily_grid_export_total') | float(0) | round(2) }} kWh
+          🌱 Independence: {{ states('sensor.energy_independence_percentage') }}%
+          
+          **Current Status:**
+          🔋 Battery SOC: {{ states('sensor.combined_battery_soc') }}%
+          ⚡ Solar Power: {{ states('sensor.combined_solar_power') }}W
+          💡 Prepaid Left: {{ states('sensor.prepaid_units_left') }} kWh
+          📅 Days Left: {{ states('sensor.days_until_prepaid_empty') }}
+          
+          Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+  mode: single
+
+# Load shedding preparation automation
+- id: 'load_shedding_preparation'
+  alias: 'Load Shedding: Daily Preparation Check at 09:00'
+  description: 'Check battery levels and prepare for potential load shedding'
+  trigger:
+    - platform: time
+      at: '09:00:00'
+    - platform: state
+      entity_id: input_boolean.load_shedding_mode
+      to: 'on'
+  condition:
+    - condition: or
+      conditions:
+        - condition: state
+          entity_id: input_boolean.load_shedding_mode
+          state: 'on'
+        - condition: numeric_state
+          entity_id: sensor.combined_battery_soc
+          below: 30
+  action:
+    - service: notify.telegram
+      data:
+        title: "🔌 Load Shedding Preparation"
+        message: >
+          **Load Shedding Status Check:**
+          
+          🔋 Battery Level: {{ states('sensor.combined_battery_soc') }}%
+          ⚡ Solar Power: {{ states('sensor.combined_solar_power') }}W
+          🌞 Current Time: {{ now().strftime('%H:%M') }}
+          
+          {% if states('sensor.combined_battery_soc') | float < 30 %}
+          ⚠️ **Battery Low Warning:**
+          Battery below 30% - Consider reducing non-essential loads
+          {% elif states('sensor.combined_battery_soc') | float >= 80 %}
+          ✅ **Battery Well Charged:**
+          Ready for potential load shedding periods
+          {% else %}
+          📊 **Battery Moderate:**
+          Monitor levels throughout the day
+          {% endif %}
+          
+          Load Shedding Mode: {{ 'ACTIVE' if is_state('input_boolean.load_shedding_mode', 'on') else 'STANDBY' }}
+  mode: single
+# Opened Files
+## File Name
+packages/backup.yaml
+## File Content
+#===============================================================================
+# Backup Configuration Package - Fixed
+# File: packages/backup.yaml
+# Updated: 2025-08-22
+# Note: Removed shell_command (it's in main configuration.yaml)
+#===============================================================================
+
+# Backup automation
+automation:
+  - id: 'backup_daily'
+    alias: 'Backup: Daily Configuration Backup at 09:00'
+    description: 'Create daily backup of Home Assistant configuration'
     trigger:
-      - platform: numeric_state
-        entity_id: {entity_id}
-        below: 20
-        for:
-          minutes: 30
+      - platform: time
+        at: '09:00:00'
     condition:
       - condition: state
-        entity_id: input_boolean.battery_alerts_enabled
+        entity_id: input_boolean.auto_backup_enabled
         state: 'on'
     action:
-      - service: notify.email
-        data:
-          title: "🔋 Battery Alert: {device_name}"
-          message: >
-            {device_name} battery is at {{{{ states('{entity_id}') }}}}%
-            
-            Please charge or replace the battery soon.
-            
-            Time: {{{{ now().strftime('%Y-%m-%d %H:%M:%S') }}}}
+      - service: shell_command.backup_config
       - service: notify.telegram
         data:
-          title: "🔋 {device_name} Battery Low"
-          message: "Battery level: {{{{ states('{entity_id}') }}}}%"
-"""
-                automations.append(automation)
-    
-    return automations
+          title: "💾 Daily Backup Complete"
+          message: >
+            Home Assistant configuration backup completed.
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+            Location: /backup/
+            
+            ✅ Backup successful
 
-def main():
-    """Main function"""
-    print("🔍 Discovering battery devices in Home Assistant...")
-    print(f"Connecting to: {HA_URL}")
-    
-    # Get all entities
-    entities = get_all_entities()
-    if not entities:
-        print("❌ Failed to fetch entities. Check your HA_TOKEN and HA_URL.")
-        return
-    
-    print(f"📊 Found {len(entities)} total entities")
-    
-    # Find battery entities
-    battery_entities = find_battery_entities(entities)
-    print(f"🔋 Found {len(battery_entities)} battery entities")
-    
-    # Categorize devices
-    categories = categorize_devices(battery_entities)
-    
-    # Generate configuration
-    config = generate_battery_config(categories)
-    
-    # Print report
-    print_discovery_report(categories, config)
-    
-    # Save detailed report to file
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    
-    with open(f'battery_discovery_report_{timestamp}.json', 'w') as f:
-        report_data = {
-            'timestamp': timestamp,
-            'total_devices': len(battery_entities),
-            'categories': categories,
-            'config': config
-        }
-        json.dump(report_data, f, indent=2, default=str)
-    
-    print(f"\n💾 Detailed report saved to: battery_discovery_report_{timestamp}.json")
-    
-    # Generate automation snippets
-    automations = generate_yaml_configs(categories)
-    if automations:
-        with open(f'battery_automations_{timestamp}.yaml', 'w') as f:
-            f.write("# Additional battery automations for specific devices\n")
-            f.write("automation:")
-            for automation in automations:
-                f.write(automation)
-        
-        print(f"🤖 Device-specific automations saved to: battery_automations_{timestamp}.yaml")
-    
-    print("\n✅ Discovery complete!")
-    print("\n📋 Next steps:")
-    print("1. Update HA_TOKEN in this script with your actual token")
-    print("2. Copy the battery monitoring configuration to packages/battery_monitoring.yaml")
-    print("3. Add the dashboard configuration to your Lovelace dashboards")
-    print("4. Restart Home Assistant")
-    print("5. Check the new battery monitoring dashboard")
+# Input helpers for backup settings
+input_boolean:
+  auto_backup_enabled:
+    name: "Automatic Backup Enabled"
+    initial: true
+    icon: mdi:backup-restore
 
-if __name__ == "__main__":
-    main()
+input_number:
+  backup_retention_days:
+    name: "Backup Retention Days"
+    min: 1
+    max: 30
+    step: 1
+    initial: 7
+    icon: mdi:calendar-clock
+# Opened Files
+## File Name
+packages/entity_diagnostics.yaml
+## File Content
+#===============================================================================
+# Entity Diagnostics Package
+# File: packages/entity_diagnostics.yaml
+# Created: 2025-08-22
+# Purpose: Monitor and report missing or unavailable entities
+#===============================================================================
+
+template:
+  - sensor:
+      - name: "Missing Solar Entities Report"
+        state: >
+          {% set required_entities = [
+            'sensor.deyeinvertermaster_pv_power',
+            'sensor.deyeinverterslave_pv_power',
+            'sensor.deyeinvertermaster_battery_discharge_power',
+            'sensor.deyeinverterslave_battery_discharge_power',
+            'sensor.deyeinvertermaster_grid_import_power',
+            'sensor.deyeinverterslave_grid_import_power',
+            'sensor.deyeinvertermaster_grid_export_power',
+            'sensor.deyeinverterslave_grid_export_power',
+            'sensor.deyeinvertermaster_battery_soc',
+            'sensor.deyeinverterslave_battery_soc',
+            'sensor.deyeinvertermaster_battery_charge_power',
+            'sensor.deyeinverterslave_battery_charge_power'
+          ] %}
+          {% set missing = namespace(entities=[]) %}
+          {% for entity in required_entities %}
+            {% if states(entity) in ['unknown', 'unavailable'] %}
+              {% set missing.entities = missing.entities + [entity] %}
+            {% endif %}
+          {% endfor %}
+          {{ missing.entities | length }}
+        attributes:
+          missing_entities: >
+            {% set required_entities = [
+              'sensor.deyeinvertermaster_pv_power',
+              'sensor.deyeinverterslave_pv_power',
+              'sensor.deyeinvertermaster_battery_discharge_power',
+              'sensor.deyeinverterslave_battery_discharge_power',
+              'sensor.deyeinvertermaster_grid_import_power',
+              'sensor.deyeinverterslave_grid_import_power',
+              'sensor.deyeinvertermaster_grid_export_power',
+              'sensor.deyeinverterslave_grid_export_power',
+              'sensor.deyeinvertermaster_battery_soc',
+              'sensor.deyeinverterslave_battery_soc',
+              'sensor.deyeinvertermaster_battery_charge_power',
+              'sensor.deyeinverterslave_battery_charge_power'
+            ] %}
+            {% set missing = namespace(entities=[]) %}
+            {% for entity in required_entities %}
+              {% if states(entity) in ['unknown', 'unavailable'] %}
+                {% set missing.entities = missing.entities + [entity] %}
+              {% endif %}
+            {% endfor %}
+            {{ missing.entities }}
+          available_entities: >
+            {% set required_entities = [
+              'sensor.deyeinvertermaster_pv_power',
+              'sensor.deyeinverterslave_pv_power',
+              'sensor.deyeinvertermaster_battery_discharge_power',
+              'sensor.deyeinverterslave_battery_discharge_power',
+              'sensor.deyeinvertermaster_grid_import_power',
+              'sensor.deyeinverterslave_grid_import_power',
+              'sensor.deyeinvertermaster_grid_export_power',
+              'sensor.deyeinverterslave_grid_export_power',
+              'sensor.deyeinvertermaster_battery_soc',
+              'sensor.deyeinverterslave_battery_soc',
+              'sensor.deyeinvertermaster_battery_charge_power',
+              'sensor.deyeinverterslave_battery_charge_power'
+            ] %}
+            {% set available = namespace(entities=[]) %}
+            {% for entity in required_entities %}
+              {% if states(entity) not in ['unknown', 'unavailable'] %}
+                {% set available.entities = available.entities + [entity] %}
+              {% endif %}
+            {% endfor %}
+            {{ available.entities }}
+
+      - name: "Battery Entities Status"
+        state: >
+          {% set battery_entities = [
+            'sensor.temperature_humidity_sensor_battery',
+            'sensor.temperature_humidity_sensor_battery_2',
+            'sensor.motion_sensor_battery',
+            'sensor.snzb_05p_battery'
+          ] %}
+          {% set available = namespace(count=0) %}
+          {% for entity in battery_entities %}
+            {% if states(entity) not in ['unknown', 'unavailable'] %}
+              {% set available.count = available.count + 1 %}
+            {% endif %}
+          {% endfor %}
+          {{ available.count }}
+        attributes:
+          total_entities: 4
+          available_entities: >
+            {% set battery_entities = [
+              'sensor.temperature_humidity_sensor_battery',
+              'sensor.temperature_humidity_sensor_battery_2', 
+              'sensor.motion_sensor_battery',
+              'sensor.snzb_05p_battery'
+            ] %}
+            {% set available = namespace(entities=[]) %}
+            {% for entity in battery_entities %}
+              {% if states(entity) not in ['unknown', 'unavailable'] %}
+                {% set available.entities = available.entities + [entity] %}
+              {% endif %}
+            {% endfor %}
+            {{ available.entities }}
+          unavailable_entities: >
+            {% set battery_entities = [
+              'sensor.temperature_humidity_sensor_battery',
+              'sensor.temperature_humidity_sensor_battery_2',
+              'sensor.motion_sensor_battery', 
+              'sensor.snzb_05p_battery'
+            ] %}
+            {% set unavailable = namespace(entities=[]) %}
+            {% for entity in battery_entities %}
+              {% if states(entity) in ['unknown', 'unavailable'] %}
+                {% set unavailable.entities = unavailable.entities + [entity] %}
+              {% endif %}
+            {% endfor %}
+            {{ unavailable.entities }}
+
+      - name: "Helper Entities Status"
+        state: >
+          {% set helper_entities = [
+            'input_boolean.battery_alerts_enabled',
+            'input_boolean.solar_optimization_enabled',
+            'input_boolean.telegram_notifications_enabled',
+            'counter.battery_alerts_today',
+            'counter.total_battery_alerts_sent',
+            'input_number.battery_critical_threshold',
+            'input_number.battery_low_threshold',
+            'input_number.battery_warning_threshold'
+          ] %}
+          {% set available = namespace(count=0) %}
+          {% for entity in helper_entities %}
+            {% if states(entity) not in ['unknown', 'unavailable'] %}
+              {% set available.count = available.count + 1 %}
+            {% endif %}
+          {% endfor %}
+          {{ available.count }}
+        attributes:
+          total_entities: 8
+          missing_helpers: >
+            {% set helper_entities = [
+              'input_boolean.battery_alerts_enabled',
+              'input_boolean.solar_optimization_enabled',
+              'input_boolean.telegram_notifications_enabled',
+              'counter.battery_alerts_today',
+              'counter.total_battery_alerts_sent',
+              'input_number.battery_critical_threshold',
+              'input_number.battery_low_threshold',
+              'input_number.battery_warning_threshold'
+            ] %}
+            {% set missing = namespace(entities=[]) %}
+            {% for entity in helper_entities %}
+              {% if states(entity) in ['unknown', 'unavailable'] %}
+                {% set missing.entities = missing.entities + [entity] %}
+              {% endif %}
+            {% endfor %}
+            {{ missing.entities }}
+
+  - binary_sensor:
+      - name: "All Critical Entities Available"
+        state: >
+          {% set critical_entities = [
+            'sensor.deyeinvertermaster_battery_soc',
+            'sensor.deyeinverterslave_battery_soc',
+            'sensor.deyeinvertermaster_pv_power',
+            'sensor.deyeinverterslave_pv_power',
+            'input_boolean.battery_alerts_enabled',
+            'input_boolean.solar_optimization_enabled'
+          ] %}
+          {% set unavailable = namespace(count=0) %}
+          {% for entity in critical_entities %}
+            {% if states(entity) in ['unknown', 'unavailable'] %}
+              {% set unavailable.count = unavailable.count + 1 %}
+            {% endif %}
+          {% endfor %}
+          {{ unavailable.count == 0 }}
+        icon: >
+          {% if is_state('binary_sensor.all_critical_entities_available', 'on') %}
+            mdi:check-circle-outline
+          {% else %}
+            mdi:alert-circle-outline
+          {% endif %}
+
+# Automations for entity monitoring
+automation:
+  - id: 'entity_diagnostics_daily_report'
+    alias: 'Diagnostics: Daily Entity Status Report at 09:00'
+    description: 'Daily report of missing or unavailable entities'
+    trigger:
+      - platform: time
+        at: '09:00:00'
+    action:
+      - service: notify.telegram
+        data:
+          title: "🔍 Daily Entity Diagnostics Report"
+          message: >
+            **Entity Status Summary:**
+            
+            🔋 Battery Entities: {{ states('sensor.battery_entities_status') }}/4 available
+            ⚡ Solar Entities Missing: {{ states('sensor.missing_solar_entities_report') }}
+            🎛️ Helper Entities: {{ states('sensor.helper_entities_status') }}/8 available
+            ✅ Critical Systems: {{ 'OK' if is_state('binary_sensor.all_critical_entities_available', 'on') else 'ISSUES FOUND' }}
+            
+            {% if states('sensor.missing_solar_entities_report') | int > 0 %}
+            **⚠️ Missing Solar Entities:**
+            {% for entity in state_attr('sensor.missing_solar_entities_report', 'missing_entities') %}
+            • {{ entity }}
+            {% endfor %}
+            {% endif %}
+            
+            {% if state_attr('sensor.battery_entities_status', 'unavailable_entities') | length > 0 %}
+            **🔋 Unavailable Battery Entities:**
+            {% for entity in state_attr('sensor.battery_entities_status', 'unavailable_entities') %}
+            • {{ entity }}
+            {% endfor %}
+            {% endif %}
+            
+            {% if state_attr('sensor.helper_entities_status', 'missing_helpers') | length > 0 %}
+            **🎛️ Missing Helper Entities:**
+            {% for entity in state_attr('sensor.helper_entities_status', 'missing_helpers') %}
+            • {{ entity }}
+            {% endfor %}
+            {% endif %}
+            
+            {% if is_state('binary_sensor.all_critical_entities_available', 'on') and states('sensor.missing_solar_entities_report') | int == 0 and state_attr('sensor.battery_entities_status', 'unavailable_entities') | length == 0 %}
+            ✅ All entities are available and working correctly!
+            {% endif %}
+
+  - id: 'entity_critical_failure_alert'
+    alias: 'Diagnostics: Critical Entity Failure Alert at 09:00'
+    description: 'Alert when critical entities become unavailable'
+    trigger:
+      - platform: time
+        at: '09:00:00'
+      - platform: state
+        entity_id: binary_sensor.all_critical_entities_available
+        to: 'off'
+        for:
+          minutes: 5
+    condition:
+      - condition: state
+        entity_id: binary_sensor.all_critical_entities_available
+        state: 'off'
+    action:
+      - service: notify.telegram
+        data:
+          title: "🚨 CRITICAL ENTITY FAILURE"
+          message: >
+            **IMMEDIATE ATTENTION REQUIRED**
+            
+            Critical system entities are unavailable!
+            
+            📊 Current Status:
+            • Solar Entities Missing: {{ states('sensor.missing_solar_entities_report') }}
+            • Battery Entities: {{ states('sensor.battery_entities_status') }}/4
+            • Helper Entities: {{ states('sensor.helper_entities_status') }}/8
+            
+            **Action Required:**
+            1. Check Home Assistant logs
+            2. Verify integration status
+            3. Restart integrations if needed
+            4. Check device connectivity
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+# Opened Files
+## File Name
+scripts.yaml
+## File Content
+# Morning solar optimization script
+morning_solar_optimization:
+  alias: "Morning Solar Optimization"
+  description: "Optimize solar settings for the day ahead"
+  sequence:
+    - service: notify.telegram
+      data:
+        title: "🌅 Morning Solar Optimization"
+        message: >
+          Starting daily solar optimization at 09:00
+          
+          Current conditions:
+          🔋 Battery SOC: {{ states('sensor.combined_battery_soc') }}%
+          ⚡ Solar Power: {{ states('sensor.combined_solar_power') }}W
+          
+    - choose:
+        - conditions:
+            - condition: numeric_state
+              entity_id: sensor.combined_battery_soc
+              above: 80
+            - condition: numeric_state
+              entity_id: sensor.combined_solar_power
+              above: 500
+          sequence:
+            - service: select.select_option
+              data:
+                option: "Zero Export"
+              target:
+                entity_id:
+                  - select.deyeinvertermaster_load_limit_exp_ess_non_ess
+                  - select.deyeinverterslave_load_limit_exp_ess_non_ess
+            - service: notify.telegram
+              data:
+                message: "✅ Set to Zero Export - Good solar conditions and high battery"
+        - conditions:
+            - condition: numeric_state
+              entity_id: sensor.combined_battery_soc
+              below: 50
+          sequence:
+            - service: select.select_option
+              data:
+                option: "Essentials"
+              target:
+                entity_id:
+                  - select.deyeinvertermaster_load_limit_exp_ess_non_ess
+                  - select.deyeinverterslave_load_limit_exp_ess_non_ess
+            - service: notify.telegram
+              data:
+                message: "⚠️ Set to Essentials - Battery needs charging"
+      default:
+        - service: notify.telegram
+          data:
+            message: "📊 Maintaining current settings - Conditions are moderate"
+
+# Battery status check script
+battery_status_check:
+  alias: "Battery Status Check"
+  description: "Check all battery-powered devices and report status"
+  sequence:
+    - service: counter.increment
+      target:
+        entity_id: counter.battery_alerts_today
+    - variables:
+        battery_entities:
+          - sensor.temperature_humidity_sensor_battery
+          - sensor.temperature_humidity_sensor_battery_2
+          - sensor.motion_sensor_battery
+          - sensor.snzb_05p_battery
+        critical_threshold: "{{ states('input_number.battery_critical_threshold') | int }}"
+    - repeat:
+        for_each: "{{ battery_entities }}"
+        sequence:
+          - condition: template
+            value_template: "{{ states(repeat.item) not in ['unknown', 'unavailable'] }}"
+          - condition: template
+            value_template: "{{ states(repeat.item) | int <= critical_threshold }}"
+          - service: notify.telegram
+            data:
+              title: "🔋 Critical Battery Alert"
+              message: >
+                **CRITICAL:** {{ state_attr(repeat.item, 'friendly_name') }}
+                Battery Level: {{ states(repeat.item) }}%
+                Threshold: {{ critical_threshold }}%
+                
+                ⚠️ **IMMEDIATE ACTION REQUIRED**
+
+# System health check script
+system_health_check:
+  alias: "System Health Check"
+  description: "Comprehensive system health monitoring"
+  sequence:
+    - variables:
+        cpu_usage: "{{ states('sensor.processor_use') | float(0) }}"
+        memory_usage: "{{ states('sensor.memory_use_percent') | float(0) }}"
+        disk_usage: "{{ states('sensor.disk_use_percent_config') | float(0) }}"
+    - condition: template
+      value_template: >
+        {{ cpu_usage > 90 or memory_usage > 90 or disk_usage > 90 }}
+    - service: notify.telegram
+      data:
+        title: "🚨 System Health Warning"
+        message: >
+          **System resources are high:**
+          
+          🖥️ CPU: {{ cpu_usage }}%
+          💾 Memory: {{ memory_usage }}%
+          💿 Disk: {{ disk_usage }}%
+
+# Telegram status report script
+telegram_status_report:
+  alias: "Send Telegram Status Report"
+  description: "Send comprehensive status report on demand"
+  sequence:
+    - service: notify.telegram
+      data:
+        title: "📊 Manual Status Report"
+        message: >
+          **System Status:**
+          
+          🔋 **Solar System:**
+          • Combined Battery: {{ states('sensor.combined_battery_soc') }}%
+          • Solar Power: {{ states('sensor.combined_solar_power') }}W
+          • Grid Import: {{ states('sensor.total_grid_import') }}W
+          • Grid Export: {{ states('sensor.total_grid_export') }}W
+          
+          💡 **Prepaid Status:**
+          • Units Left: {{ states('sensor.prepaid_units_left') }} kWh
+          • Days Remaining: {{ states('sensor.days_until_prepaid_empty') }}
+          
+          🖥️ **System Health:**
+          • CPU Usage: {{ states('sensor.processor_use') }}%
+          • Memory Usage: {{ states('sensor.memory_use_percent') }}%
+          • Disk Usage: {{ states('sensor.disk_use_percent_config') }}%
+          
+          Generated: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+
+# Emergency test script
+telegram_emergency_test:
+  alias: "Test Emergency Notifications"
+  description: "Test emergency notification system"
+  sequence:
+    - service: notify.telegram
+      data:
+        title: "🧪 Emergency System Test"
+        message: >
+          **EMERGENCY NOTIFICATION TEST**
+          
+          This is a test of the emergency notification system.
+          
+          🔋 Battery Status: {{ states('sensor.battery_status_summary') | title }}
+          ⚡ Solar Power: {{ states('sensor.combined_solar_power') }}W
+          
+          Test completed: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+
+# Git commit script
+git_commit_config:
+  alias: "Commit Configuration to Git"
+  description: "Commit current configuration to GitHub repository"
+  sequence:
+    - service: shell_command.git_commit
+    - service: notify.telegram
+      data:
+        title: "📝 Configuration Committed"
+        message: >
+          Home Assistant configuration committed to GitHub.
+          Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+
+# Entity diagnostics script  
+run_entity_diagnostics:
+  alias: "Run Entity Diagnostics"
+  description: "Check all entities and report missing ones"
+  sequence:
+    - service: notify.telegram
+      data:
+        title: "🔍 Entity Diagnostics Complete"
+        message: >
+          **Entity Diagnostic Results:**
+          
+          🔋 Battery Entities: {{ states('sensor.battery_entities_status') }}/4 available
+          ⚡ Solar Entities: {{ 12 - (states('sensor.missing_solar_entities_report') | int) }}/12 available
+          🎛️ Helper Entities: {{ states('sensor.helper_entities_status') }}/8 available
+          
+          **Overall Status:** {{ 'All entities available ✅' if is_state('binary_sensor.all_critical_entities_available', 'on') else 'Issues detected ⚠️' }}
+          
+          Scan completed: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+# Opened Files
+## File Name
+packages/telegram.yaml
+## File Content
+#===============================================================================
+# Telegram Integration Package - Fixed
+# File: packages/telegram.yaml
+# Created: 2025-08-22
+# Purpose: Configure Telegram bot and notifications
+# Note: input_boolean entities are defined in helpers.yaml
+#===============================================================================
+
+# Removed as it was incorporated in the UI
+# Telegram Bot Configuration
+#telegram_bot:
+#  - platform: polling
+#    api_key: !secret telegram_bot_token
+#    allowed_chat_ids:
+#      - !secret telegram_chat_id
+
+# Telegram Notification Service
+notify:
+  - name: telegram
+    platform: telegram
+    chat_id: !secret telegram_chat_id
+
+# Template sensor for Telegram bot status
+template:
+  - binary_sensor:
+      - name: "Telegram Bot Connected"
+        state: >
+          {{ states('sensor.telegram_bot') not in ['unknown', 'unavailable'] }}
+        icon: >
+          {% if is_state('binary_sensor.telegram_bot_connected', 'on') %}
+            mdi:telegram
+          {% else %}
+            mdi:telegram-off
+          {% endif %}
+
+# Test automation to verify Telegram works
+automation:
+  - id: 'telegram_test_connection'
+    alias: 'Telegram: Test Connection at Startup'
+    description: 'Test Telegram connection when Home Assistant starts'
+    trigger:
+      - platform: homeassistant
+        event: start
+    action:
+      - delay: '00:01:00'  # Wait 1 minute after startup
+      - condition: state
+        entity_id: input_boolean.telegram_notifications_enabled
+        state: 'on'
+      - service: notify.telegram
+        data:
+          title: "🏠 Home Assistant Started"
+          message: >
+            Home Assistant has started successfully!
+            
+            Telegram notifications are working.
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+            
+            ✅ System Online
+# Opened Files
+## File Name
+packages/security_monitoring.yaml
+## File Content
+# Security Monitoring Package
+# Added with Claude.ai on 20 Aug 2025
+# Created: {{ now().strftime('%Y-%m-%d') }}
+
+# ==============================================================================
+# SECURITY SENSORS
+# ==============================================================================
+
+binary_sensor:
+  # Monitor for suspicious component activity
+  - platform: template
+    sensors:
+      security_suspicious_activity:
+        friendly_name: "Suspicious Security Activity"
+        value_template: >
+          {% set recent_logs = states('sensor.security_log_monitor') %}
+          {{ 'config_editor' in recent_logs or 'directory_traversal' in recent_logs }}
+        icon_template: >
+          {% if is_state('binary_sensor.security_suspicious_activity', 'on') %}
+            mdi:shield-alert
+          {% else %}
+            mdi:shield-check
+          {% endif %}
+
+      # Monitor failed login attempts
+      security_failed_logins:
+        friendly_name: "Failed Login Attempts Detected"
+        value_template: >
+          {% set recent_logs = states('sensor.security_log_monitor') %}
+          {{ 'invalid authentication' in recent_logs.lower() or 'login attempt' in recent_logs.lower() }}
+
+sensor:
+  # System monitoring for security
+# Removed on 20 Aug 2025 due to confligt  
+#  - platform: systemmonitor
+#    resources:
+#      - type: network_in
+#        arg: eth0
+#      - type: network_out  
+#        arg: eth0
+#      - type: processor_use
+#      - type: memory_use_percent
+
+  # Command line sensor to monitor security logs
+  - platform: command_line
+    name: "Security Log Monitor"
+    command: 'tail -100 /config/home-assistant.log | grep -E "(config_editor|websocket|invalid|failed|unauthorized|error)" | tail -10'
+    scan_interval: 60  # Check every minute
+
+  # Monitor WebSocket connections
+  - platform: command_line
+    name: "Active WebSocket Connections"
+    command: 'grep "websocket" /config/home-assistant.log | tail -5'
+    scan_interval: 300  # Check every 5 minutes
+
+  # File modification monitor
+  - platform: command_line
+    name: "Recent File Changes"
+    command: 'find /config -name "*.yaml" -mmin -60 | wc -l'
+    scan_interval: 300
+    unit_of_measurement: "files"
+
+
+
+# ==============================================================================
+# SECURITY DASHBOARD ELEMENTS
+# ==============================================================================
+
+input_boolean:
+  security_monitoring_enabled:
+    name: "Security Monitoring Active"
+    icon: mdi:shield-check
+
+  security_high_alert_mode:
+    name: "High Alert Security Mode"
+    icon: mdi:shield-alert
+
+# For tracking security events
+counter:
+  security_failed_logins_count:
+    name: "Failed Login Attempts Today"
+    icon: mdi:account-alert
+    step: 1
+
+  security_suspicious_events_count:
+    name: "Suspicious Events Today"  
+    icon: mdi:alert-circle
+    step: 1
+#xxxxxxxxxxxxxxxxxxxxxxxxxxxXXXXXXXXXXXXXXXXXXXXXXXXXxxxxxxxxxxxxxxxxxxxxxxxxxxx

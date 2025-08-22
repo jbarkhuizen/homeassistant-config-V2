@@ -1,13 +1,58 @@
-# Notifier
-notify:
-  - platform: telegram
-    name: "telegram"
-    chat_id: -1002014412698
+#===============================================================================
+# Telegram Integration Package - Fixed
+# File: packages/telegram.yaml
+# Created: 2025-08-22
+# Purpose: Configure Telegram bot and notifications
+# Note: input_boolean entities are defined in helpers.yaml
+#===============================================================================
 
-# Automatically migrated to the UI
-# Commented out on 20 Aug 2025
-#    telegram_bot:
+# Removed as it was incorporated in the UI
+# Telegram Bot Configuration
+#telegram_bot:
 #  - platform: polling
-#    api_key: !secret telegram_api
+#    api_key: !secret telegram_bot_token
 #    allowed_chat_ids:
-#      - -1002014412698
+#      - !secret telegram_chat_id
+
+# Telegram Notification Service
+notify:
+  - name: telegram
+    platform: telegram
+    chat_id: !secret telegram_chat_id
+
+# Template sensor for Telegram bot status
+template:
+  - binary_sensor:
+      - name: "Telegram Bot Connected"
+        state: >
+          {{ states('sensor.telegram_bot') not in ['unknown', 'unavailable'] }}
+        icon: >
+          {% if is_state('binary_sensor.telegram_bot_connected', 'on') %}
+            mdi:telegram
+          {% else %}
+            mdi:telegram-off
+          {% endif %}
+
+# Test automation to verify Telegram works
+automation:
+  - id: 'telegram_test_connection'
+    alias: 'Telegram: Test Connection at Startup'
+    description: 'Test Telegram connection when Home Assistant starts'
+    trigger:
+      - platform: homeassistant
+        event: start
+    action:
+      - delay: '00:01:00'  # Wait 1 minute after startup
+      - condition: state
+        entity_id: input_boolean.telegram_notifications_enabled
+        state: 'on'
+      - service: notify.telegram
+        data:
+          title: "🏠 Home Assistant Started"
+          message: >
+            Home Assistant has started successfully!
+            
+            Telegram notifications are working.
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+            
+            ✅ System Online

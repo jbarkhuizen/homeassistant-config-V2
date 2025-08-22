@@ -1,0 +1,270 @@
+#===============================================================================
+# Entity Diagnostics Package
+# File: packages/entity_diagnostics.yaml
+# Created: 2025-08-22
+# Purpose: Monitor and report missing or unavailable entities
+#===============================================================================
+
+template:
+  - sensor:
+      - name: "Missing Solar Entities Report"
+        state: >
+          {% set required_entities = [
+            'sensor.deyeinvertermaster_pv_power',
+            'sensor.deyeinverterslave_pv_power',
+            'sensor.deyeinvertermaster_battery_discharge_power',
+            'sensor.deyeinverterslave_battery_discharge_power',
+            'sensor.deyeinvertermaster_grid_import_power',
+            'sensor.deyeinverterslave_grid_import_power',
+            'sensor.deyeinvertermaster_grid_export_power',
+            'sensor.deyeinverterslave_grid_export_power',
+            'sensor.deyeinvertermaster_battery_soc',
+            'sensor.deyeinverterslave_battery_soc',
+            'sensor.deyeinvertermaster_battery_charge_power',
+            'sensor.deyeinverterslave_battery_charge_power'
+          ] %}
+          {% set missing = namespace(entities=[]) %}
+          {% for entity in required_entities %}
+            {% if states(entity) in ['unknown', 'unavailable'] %}
+              {% set missing.entities = missing.entities + [entity] %}
+            {% endif %}
+          {% endfor %}
+          {{ missing.entities | length }}
+        attributes:
+          missing_entities: >
+            {% set required_entities = [
+              'sensor.deyeinvertermaster_pv_power',
+              'sensor.deyeinverterslave_pv_power',
+              'sensor.deyeinvertermaster_battery_discharge_power',
+              'sensor.deyeinverterslave_battery_discharge_power',
+              'sensor.deyeinvertermaster_grid_import_power',
+              'sensor.deyeinverterslave_grid_import_power',
+              'sensor.deyeinvertermaster_grid_export_power',
+              'sensor.deyeinverterslave_grid_export_power',
+              'sensor.deyeinvertermaster_battery_soc',
+              'sensor.deyeinverterslave_battery_soc',
+              'sensor.deyeinvertermaster_battery_charge_power',
+              'sensor.deyeinverterslave_battery_charge_power'
+            ] %}
+            {% set missing = namespace(entities=[]) %}
+            {% for entity in required_entities %}
+              {% if states(entity) in ['unknown', 'unavailable'] %}
+                {% set missing.entities = missing.entities + [entity] %}
+              {% endif %}
+            {% endfor %}
+            {{ missing.entities }}
+          available_entities: >
+            {% set required_entities = [
+              'sensor.deyeinvertermaster_pv_power',
+              'sensor.deyeinverterslave_pv_power',
+              'sensor.deyeinvertermaster_battery_discharge_power',
+              'sensor.deyeinverterslave_battery_discharge_power',
+              'sensor.deyeinvertermaster_grid_import_power',
+              'sensor.deyeinverterslave_grid_import_power',
+              'sensor.deyeinvertermaster_grid_export_power',
+              'sensor.deyeinverterslave_grid_export_power',
+              'sensor.deyeinvertermaster_battery_soc',
+              'sensor.deyeinverterslave_battery_soc',
+              'sensor.deyeinvertermaster_battery_charge_power',
+              'sensor.deyeinverterslave_battery_charge_power'
+            ] %}
+            {% set available = namespace(entities=[]) %}
+            {% for entity in required_entities %}
+              {% if states(entity) not in ['unknown', 'unavailable'] %}
+                {% set available.entities = available.entities + [entity] %}
+              {% endif %}
+            {% endfor %}
+            {{ available.entities }}
+
+      - name: "Battery Entities Status"
+        state: >
+          {% set battery_entities = [
+            'sensor.temperature_humidity_sensor_battery',
+            'sensor.temperature_humidity_sensor_battery_2',
+            'sensor.motion_sensor_battery',
+            'sensor.snzb_05p_battery'
+          ] %}
+          {% set available = namespace(count=0) %}
+          {% for entity in battery_entities %}
+            {% if states(entity) not in ['unknown', 'unavailable'] %}
+              {% set available.count = available.count + 1 %}
+            {% endif %}
+          {% endfor %}
+          {{ available.count }}
+        attributes:
+          total_entities: 4
+          available_entities: >
+            {% set battery_entities = [
+              'sensor.temperature_humidity_sensor_battery',
+              'sensor.temperature_humidity_sensor_battery_2', 
+              'sensor.motion_sensor_battery',
+              'sensor.snzb_05p_battery'
+            ] %}
+            {% set available = namespace(entities=[]) %}
+            {% for entity in battery_entities %}
+              {% if states(entity) not in ['unknown', 'unavailable'] %}
+                {% set available.entities = available.entities + [entity] %}
+              {% endif %}
+            {% endfor %}
+            {{ available.entities }}
+          unavailable_entities: >
+            {% set battery_entities = [
+              'sensor.temperature_humidity_sensor_battery',
+              'sensor.temperature_humidity_sensor_battery_2',
+              'sensor.motion_sensor_battery', 
+              'sensor.snzb_05p_battery'
+            ] %}
+            {% set unavailable = namespace(entities=[]) %}
+            {% for entity in battery_entities %}
+              {% if states(entity) in ['unknown', 'unavailable'] %}
+                {% set unavailable.entities = unavailable.entities + [entity] %}
+              {% endif %}
+            {% endfor %}
+            {{ unavailable.entities }}
+
+      - name: "Helper Entities Status"
+        state: >
+          {% set helper_entities = [
+            'input_boolean.battery_alerts_enabled',
+            'input_boolean.solar_optimization_enabled',
+            'input_boolean.telegram_notifications_enabled',
+            'counter.battery_alerts_today',
+            'counter.total_battery_alerts_sent',
+            'input_number.battery_critical_threshold',
+            'input_number.battery_low_threshold',
+            'input_number.battery_warning_threshold'
+          ] %}
+          {% set available = namespace(count=0) %}
+          {% for entity in helper_entities %}
+            {% if states(entity) not in ['unknown', 'unavailable'] %}
+              {% set available.count = available.count + 1 %}
+            {% endif %}
+          {% endfor %}
+          {{ available.count }}
+        attributes:
+          total_entities: 8
+          missing_helpers: >
+            {% set helper_entities = [
+              'input_boolean.battery_alerts_enabled',
+              'input_boolean.solar_optimization_enabled',
+              'input_boolean.telegram_notifications_enabled',
+              'counter.battery_alerts_today',
+              'counter.total_battery_alerts_sent',
+              'input_number.battery_critical_threshold',
+              'input_number.battery_low_threshold',
+              'input_number.battery_warning_threshold'
+            ] %}
+            {% set missing = namespace(entities=[]) %}
+            {% for entity in helper_entities %}
+              {% if states(entity) in ['unknown', 'unavailable'] %}
+                {% set missing.entities = missing.entities + [entity] %}
+              {% endif %}
+            {% endfor %}
+            {{ missing.entities }}
+
+  - binary_sensor:
+      - name: "All Critical Entities Available"
+        state: >
+          {% set critical_entities = [
+            'sensor.deyeinvertermaster_battery_soc',
+            'sensor.deyeinverterslave_battery_soc',
+            'sensor.deyeinvertermaster_pv_power',
+            'sensor.deyeinverterslave_pv_power',
+            'input_boolean.battery_alerts_enabled',
+            'input_boolean.solar_optimization_enabled'
+          ] %}
+          {% set unavailable = namespace(count=0) %}
+          {% for entity in critical_entities %}
+            {% if states(entity) in ['unknown', 'unavailable'] %}
+              {% set unavailable.count = unavailable.count + 1 %}
+            {% endif %}
+          {% endfor %}
+          {{ unavailable.count == 0 }}
+        icon: >
+          {% if is_state('binary_sensor.all_critical_entities_available', 'on') %}
+            mdi:check-circle-outline
+          {% else %}
+            mdi:alert-circle-outline
+          {% endif %}
+
+# Automations for entity monitoring
+automation:
+  - id: 'entity_diagnostics_daily_report'
+    alias: 'Diagnostics: Daily Entity Status Report at 09:00'
+    description: 'Daily report of missing or unavailable entities'
+    trigger:
+      - platform: time
+        at: '09:00:00'
+    action:
+      - service: notify.telegram
+        data:
+          title: "🔍 Daily Entity Diagnostics Report"
+          message: >
+            **Entity Status Summary:**
+            
+            🔋 Battery Entities: {{ states('sensor.battery_entities_status') }}/4 available
+            ⚡ Solar Entities Missing: {{ states('sensor.missing_solar_entities_report') }}
+            🎛️ Helper Entities: {{ states('sensor.helper_entities_status') }}/8 available
+            ✅ Critical Systems: {{ 'OK' if is_state('binary_sensor.all_critical_entities_available', 'on') else 'ISSUES FOUND' }}
+            
+            {% if states('sensor.missing_solar_entities_report') | int > 0 %}
+            **⚠️ Missing Solar Entities:**
+            {% for entity in state_attr('sensor.missing_solar_entities_report', 'missing_entities') %}
+            • {{ entity }}
+            {% endfor %}
+            {% endif %}
+            
+            {% if state_attr('sensor.battery_entities_status', 'unavailable_entities') | length > 0 %}
+            **🔋 Unavailable Battery Entities:**
+            {% for entity in state_attr('sensor.battery_entities_status', 'unavailable_entities') %}
+            • {{ entity }}
+            {% endfor %}
+            {% endif %}
+            
+            {% if state_attr('sensor.helper_entities_status', 'missing_helpers') | length > 0 %}
+            **🎛️ Missing Helper Entities:**
+            {% for entity in state_attr('sensor.helper_entities_status', 'missing_helpers') %}
+            • {{ entity }}
+            {% endfor %}
+            {% endif %}
+            
+            {% if is_state('binary_sensor.all_critical_entities_available', 'on') and states('sensor.missing_solar_entities_report') | int == 0 and state_attr('sensor.battery_entities_status', 'unavailable_entities') | length == 0 %}
+            ✅ All entities are available and working correctly!
+            {% endif %}
+
+  - id: 'entity_critical_failure_alert'
+    alias: 'Diagnostics: Critical Entity Failure Alert at 09:00'
+    description: 'Alert when critical entities become unavailable'
+    trigger:
+      - platform: time
+        at: '09:00:00'
+      - platform: state
+        entity_id: binary_sensor.all_critical_entities_available
+        to: 'off'
+        for:
+          minutes: 5
+    condition:
+      - condition: state
+        entity_id: binary_sensor.all_critical_entities_available
+        state: 'off'
+    action:
+      - service: notify.telegram
+        data:
+          title: "🚨 CRITICAL ENTITY FAILURE"
+          message: >
+            **IMMEDIATE ATTENTION REQUIRED**
+            
+            Critical system entities are unavailable!
+            
+            📊 Current Status:
+            • Solar Entities Missing: {{ states('sensor.missing_solar_entities_report') }}
+            • Battery Entities: {{ states('sensor.battery_entities_status') }}/4
+            • Helper Entities: {{ states('sensor.helper_entities_status') }}/8
+            
+            **Action Required:**
+            1. Check Home Assistant logs
+            2. Verify integration status
+            3. Restart integrations if needed
+            4. Check device connectivity
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}

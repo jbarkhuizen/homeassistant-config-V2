@@ -1,409 +1,244 @@
 #===============================================================================
-# Sunsynk Inclusions
-# Added on 7 Aug 2025 @ 13h16 by JB
+# Automations Configuration - ONLY Automations (No Scripts)
+# File: automations.yaml
+# Updated: 2025-08-22
+# Note: All scripts must be in scripts.yaml, not here
 #===============================================================================
-- id: '1717429630744'
-  alias: Prepaid meter recharge
-  description: ''
-  trigger:
-  - platform: state
-    entity_id:
-    - input_number.prepaid_meter_units
-  condition:
-  - condition: template
-    value_template: '{{ states(''input_number.prepaid_meter_units'') | float > 0 }}'
-  actions:
-  - action: input_number.set_value
-    metadata: {}
-    data:
-      value: '{{ ((states(''sensor.deyeinvertermaster_summary_total_grid_import_buy'') |
-        float(6))  * 1000.0) }}'
-    target:
-      entity_id: input_number.prepaid_meter_inverter_total_units
-  mode: single
-#xxxxxxxxxxxxxxxxxxxxxxxxxxxXXXXXXXXXXXXXXXXXXXXXXXXXxxxxxxxxxxxxxxxxxxxxxxxxxxx
-# GitHub commit
-# Added on 20 aug 2025 @ 11h18 with Claude.ai
-#- id: 'git_auto_commit'
-#  alias: 'Auto Commit HA Config to GitHub'
-#  description: 'Automatically commit Home Assistant configuration changes to GitHub'
-#  trigger:
-#    # Daily commit at 2 AM
-#    - platform: time
-#      at: '02:00:00'
-#    # Commit after Home Assistant restarts (after 5 minutes uptime)
-#    - platform: numeric_state
-#      entity_id: sensor.uptime
-#      above: 5
-#  condition:
-#    # Ensure Home Assistant has been running for at least 5 minutes
-#    - condition: numeric_state
-#      entity_id: sensor.uptime
-#      above: 5
-#  action:
-#    - service: shell_command.git_commit
-#      data: {}
-#  mode: single
-#xxxxxxxxxxxxxxxxxxxxxxxxxxxXXXXXXXXXXXXXXXXXXXXXXXXXxxxxxxxxxxxxxxxxxxxxxxxxxxx  
-#===============================================================================
-# Sunsynk Inclusions
-# Added on 7 Aug 2025 @ 13h16 by JB
-#===============================================================================
-- id: '1686299812078'
-  alias: 'Inverter: Switch to Export essentials/Non-Essentials when sun sets/rises'
-  description: This stops the export to non-essentials from the battery when the sun
-    is not shining, but during the day solar power is sent to non-essentials
-  trigger:
-  - platform: sun
-    event: sunset
-    offset: -00:45:00
-    id: poweressentials
-  - platform: sun
-    event: sunrise
-    offset: 00:45:00
-    id: powernonessentials
-  condition: []
-  actions:
-  - choose:
-    - conditions:
-      - condition: trigger
-        id: poweressentials
-      sequence:
-      - action: select.select_option
-        data:
-          option: Essentials
-        target:
-          entity_id: select.deyeinvertermaster_load_limit_exp_ess_non_ess
-    - conditions:
-      - condition: trigger
-        id: powernonessentials
-      sequence:
-      - action: select.select_option
-        data:
-          option: Zero Export
-        target:
-          entity_id: select.deyeinvertermaster_load_limit_exp_ess_non_ess
-  mode: single
 
-#xxxxxxxxxxxxxxxxxxxxxxxxxxxXXXXXXXXXXXXXXXXXXXXXXXXXxxxxxxxxxxxxxxxxxxxxxxxxxxx
-#===============================================================================
-# Speedtest Review
-#Added by Claude.ai on 21 Aug 2025  
-#===============================================================================
-- alias: 'Weekly Speed Test Review'
-  trigger:
-      - platform: time
-        at: "09:00:00"
-  condition:
-        - condition: time
-          weekday: [sun]
-  action:
-      - service: notify.email_alerts
-        data:
-          title: "Weekly Internet Performance Review"
-          message: |
-            Weekly Performance Summary:
-            
-            📊 This Week's Averages:
-            • Download: {{ states('sensor.download_speed_24h_average') }} Mbps
-            • Upload: {{ states('sensor.upload_speed_24h_average') }} Mbps
-            • Quality Grade: {{ states('sensor.speedtest_connection_quality') }}
-            
-            🔍 Recommendations:
-            • Check Grafana for detailed trends
-            • Review any alert patterns
-            • Consider ISP contact if persistent issues
-            
-            🔗 Dashboard: http://192.168.1.30:8123/lovelace/speedtest  
-#xxxxxxxxxxxxxxxxxxxxxxxxxxxXXXXXXXXXXXXXXXXXXXXXXXXXxxxxxxxxxxxxxxxxxxxxxxxxxxx
-#===============================================================================
-# Git Sync Monitoring and Automatic Backup
-#===============================================================================
-- alias: "GitHub Sync - Daily Backup"
-  description: "Automatically commit and push configuration changes daily"
+# Prepaid meter recharge automation
+- id: '1717429630744'
+  alias: 'Prepaid: Meter Recharge at 09:00'
+  description: 'Update prepaid meter reading when units are recharged'
   trigger:
     - platform: time
-      at: "02:00:00"  # Run at 2 AM daily
+      at: '09:00:00'
+    - platform: state
+      entity_id: input_number.prepaid_meter_units
+  condition:
+    - condition: template
+      value_template: '{{ states(''input_number.prepaid_meter_units'') | float > 0 }}'
   action:
-    - service: shell_command.git_commit
-    - delay: "00:01:00"  # Wait 1 minute
-    - service: notify.persistent_notification
+    - service: input_number.set_value
+      metadata: {}
       data:
-        title: "GitHub Sync"
-        message: "Daily backup completed at {{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
-
-- alias: "GitHub Sync - On Configuration Change"
-  description: "Commit changes when important files are modified"
-  trigger:
-    - platform: event
-      event_type: folder_watcher
-      event_data:
-        event_type: modified
-        path: "/config/configuration.yaml"
-    - platform: event
-      event_type: folder_watcher
-      event_data:
-        event_type: modified
-        path: "/config/automations.yaml"
-    - platform: event
-      event_type: folder_watcher
-      event_data:
-        event_type: modified
-        path: "/config/scripts.yaml"
-  action:
-    - delay: "00:00:30"  # Wait 30 seconds for file writes to complete
-    - service: shell_command.git_commit
-
-- alias: "GitHub Sync - Notification on Failure"
-  description: "Notify when git sync fails"
-  trigger:
-    - platform: event
-      event_type: shell_command
-      event_data:
-        entity_id: shell_command.git_commit
-        result: "error"
-  action:
-    - service: notify.persistent_notification
+        value: '{{ ((states(''sensor.deyeinvertermaster_summary_total_grid_import_buy'') |
+          float(6))  * 1000.0) }}'
+      target:
+        entity_id: input_number.prepaid_meter_inverter_total_units
+    - service: notify.telegram
       data:
-        title: "GitHub Sync Failed"
-        message: "Failed to sync configuration to GitHub. Check logs for details."
-        notification_id: "git_sync_failure"  
-#xxxxxxxxxxxxxxxxxxxxxxxxxxxXXXXXXXXXXXXXXXXXXXXXXXXXxxxxxxxxxxxxxxxxxxxxxxxxxxx
-# ==============================================================================
-# AUTOMATION FOR MANUAL TEST
-# Moved from speedtest.yaml on 21 Aug 2025 @ 09h30
-# ==============================================================================
-- id: manual_speed_test_trigger
-  alias: "Manual Speed Test: Trigger"
+        title: "⚡ Prepaid Meter Recharged"
+        message: >
+          Units added: {{ states('input_number.prepaid_meter_units') }} kWh
+          New reading: {{ states('input_number.prepaid_meter_inverter_total_units') }}
+          Units remaining: {{ states('sensor.prepaid_units_left') }} kWh
+          Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+  mode: single
+
+# Solar inverter optimization automation
+- id: '1686299812078'
+  alias: 'Solar: Switch Export Mode at 09:00 and Sunset/Sunrise'
+  description: 'Control export to non-essentials based on solar availability'
   trigger:
-  - platform: state
-    entity_id: input_button.manual_speed_test
-  action:
-      - service: script.run_cloudflare_speed_test
-#===============================================================================      
-# Manual Speed Test Automation
-# Added with Claude.ai on 22 Aug 2025 @08h30
-#===============================================================================
-- id: internet_manual_test_notification
-  alias: "Internet: Manual Test Completed"
-  trigger:
-      - platform: state
-        entity_id: 
-          - sensor.cloudflare_speed_test_90th_percentile_down
-          - sensor.cloudflare_speed_test_90th_percentile_up
-        for:
-          seconds: 5
+    - platform: time
+      at: '09:00:00'
+      id: morning_check
+    - platform: sun
+      event: sunset
+      offset: -00:45:00
+      id: poweressentials
+    - platform: sun
+      event: sunrise
+      offset: 00:45:00
+      id: powernonessentials
   condition:
-      - condition: template
-        value_template: "{{ trigger.to_state.state != trigger.from_state.state }}"
+    - condition: state
+      entity_id: input_boolean.solar_optimization_enabled
+      state: 'on'
   action:
-      - service: notify.telegram
-        data:
-          title: "✅ Manual Speed Test Complete"
-          message: >
-            Speed test results:
-            
-            📈 Download: {{ states('sensor.cloudflare_speed_test_90th_percentile_down') }} Mbps
-            📉 Upload: {{ states('sensor.cloudflare_speed_test_90th_percentile_up') }} Mbps
-            ⏱️ Latency: {{ states('sensor.cloudflare_speed_test_latency') }} ms
-            📊 Jitter: {{ states('sensor.cloudflare_speed_test_jitter') }} ms
-            🌐 ISP: {{ states('sensor.cloudflare_speed_test_isp') }}
-            
-            Time: {{ now().strftime('%H:%M:%S') }}     
-#xxxxxxxxxxxxxxxxxxxxxxxxxxxXXXXXXXXXXXXXXXXXXXXXXXXXxxxxxxxxxxxxxxxxxxxxxxxxxxx
-#===============================================================================  
-  # Reset counter daily
-#===============================================================================  
-- id: internet_reset_daily_counter
-  alias: "Internet: Reset Daily Counter"
+    - choose:
+        - conditions:
+            - condition: trigger
+              id: poweressentials
+          sequence:
+            - service: select.select_option
+              data:
+                option: Essentials
+              target:
+                entity_id: 
+                  - select.deyeinvertermaster_load_limit_exp_ess_non_ess
+                  - select.deyeinverterslave_load_limit_exp_ess_non_ess
+            - service: notify.telegram
+              data:
+                title: "🌅 Solar Mode: Essentials Only"
+                message: >
+                  Switched to Essentials mode at sunset
+                  Battery SOC: {{ states('sensor.combined_battery_soc') }}%
+                  Solar Power: {{ states('sensor.combined_solar_power') }}W
+        - conditions:
+            - condition: trigger
+              id: powernonessentials
+          sequence:
+            - service: select.select_option
+              data:
+                option: Zero Export
+              target:
+                entity_id:
+                  - select.deyeinvertermaster_load_limit_exp_ess_non_ess
+                  - select.deyeinverterslave_load_limit_exp_ess_non_ess
+            - service: notify.telegram
+              data:
+                title: "☀️ Solar Mode: Zero Export"
+                message: >
+                  Switched to Zero Export mode at sunrise
+                  Battery SOC: {{ states('sensor.combined_battery_soc') }}%
+                  Solar Power: {{ states('sensor.combined_solar_power') }}W
+        - conditions:
+            - condition: trigger
+              id: morning_check
+          sequence:
+            - service: script.morning_solar_optimization
+  mode: single
+
+# Battery monitoring automation
+- id: 'battery_monitoring_daily'
+  alias: 'Battery: Daily Monitoring Check at 09:00'
+  description: 'Daily battery status check and alerts'
   trigger:
-      - platform: time
-        at: "00:00:01"
-  action:
-      - service: counter.reset
-        target:
-          entity_id: counter.internet_alerts_today
-#===============================================================================
-  # Simple speed alert
-#===============================================================================  
-- id: internet_speed_alert_simple
-  alias: "Internet: Speed Alert"
-  trigger:
-      - platform: state
-        entity_id: binary_sensor.internet_speed_slow
-        to: "on"
-        for:
-          minutes: 5
-  action:
-      - service: counter.increment
-        target:
-          entity_id: counter.internet_alerts_today
-      - service: notify.telegram
-        data:
-          title: "🌐 Internet Speed Alert"
-          message: >
-            Internet speed is slow!
-            
-            Download: {{ states('sensor.cloudflare_speed_test_90th_percentile_down') }} Mbps
-            Upload: {{ states('sensor.cloudflare_speed_test_90th_percentile_up') }} Mbps
-            Latency: {{ states('sensor.cloudflare_speed_test_latency') }} ms
-            Quality: {{ states('sensor.internet_quality_grade') }}
-            
-            Time: {{ now().strftime('%H:%M:%S') }}
-#===============================================================================
-  # Recovery notification
-#===============================================================================  
-- id: internet_speed_recovery
-  alias: "Internet: Speed Recovery"
-  trigger:
-      - platform: state
-        entity_id: binary_sensor.internet_speed_slow
-        to: "off"
-        for:
-          minutes: 10
-  action:
-      - service: notify.telegram
-        data:
-          title: "✅ Internet Speed Recovered"
-          message: >
-            Internet speed has returned to normal!
-            Download: {{ states('sensor.cloudflare_speed_test_90th_percentile_down') }} Mbps
-            Quality: {{ states('sensor.internet_quality_grade') }}" 
-#xxxxxxxxxxxxxxxxxxxxxxxxxxxXXXXXXXXXXXXXXXXXXXXXXXXXxxxxxxxxxxxxxxxxxxxxxxxxxxx
-# ==============================================================================
-# SECURITY AUTOMATIONS
-# ==============================================================================
-  # Alert on config_editor activity (before removal)
-- id: 'security_config_editor_activity'
-  alias: 'Security: config_editor Activity Detected'
-  description: 'Alert when config_editor component is accessed'
-  trigger:
-      - platform: state
-        entity_id: binary_sensor.security_suspicious_activity
-        to: 'on'
-      - platform: event
-        event_type: system_log_event
-        event_data:
-          name: homeassistant.components.websocket_api
+    - platform: time
+      at: '09:00:00'
   condition:
-      - condition: template
-        value_template: >
-          {{ 'config_editor' in trigger.event.data.message | default('') or
-             'config_editor' in states('sensor.security_log_monitor') }}
+    - condition: state
+      entity_id: input_boolean.battery_alerts_enabled
+      state: 'on'
   action:
-      - service: notify.telegram
-        data:
-          title: "🚨 CRITICAL SECURITY ALERT"
-          message: >
-            config_editor component activity detected!
-            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
-            Trigger: {{ trigger.event.data.message | default('Sensor Detection') }}
-            Action: Investigate immediately and consider removing component
-      - service: persistent_notification.create
-        data:
-          title: "Security Alert"
-          message: "config_editor activity detected - check logs immediately"
-          notification_id: "security_config_editor"
-#==============================================================================
-  # Reset counters daily
-#==============================================================================
-- id: 'security_reset_daily_counters'
-  alias: 'Security: Reset Daily Counters'
+    - service: script.battery_status_check
+    - condition: template
+      value_template: >
+        {{ states('sensor.battery_status_summary') in ['critical', 'low'] }}
+    - service: notify.telegram
+      data:
+        title: "🔋 Daily Battery Status Alert"
+        message: >
+          Battery Status: {{ states('sensor.battery_status_summary') | title }}
+          
+          {% for entity in ['sensor.temperature_humidity_sensor_battery', 'sensor.temperature_humidity_sensor_battery_2', 'sensor.motion_sensor_battery', 'sensor.snzb_05p_battery'] %}
+          {% if states(entity) not in ['unknown', 'unavailable'] %}
+          • {{ state_attr(entity, 'friendly_name') }}: {{ states(entity) }}%
+          {% endif %}
+          {% endfor %}
+          
+          Monitored devices: {{ states('sensor.battery_devices_count') }}
+          Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+  mode: single
+
+# System health monitoring automation
+- id: 'system_health_daily'
+  alias: 'System: Daily Health Check at 09:00'
+  description: 'Daily system health monitoring and reporting'
   trigger:
-      - platform: time
-        at: "00:00:01"
+    - platform: time
+      at: '09:00:00'
   action:
-      - service: counter.reset
-        target:
-          entity_id:
-            - counter.security_failed_logins_count
-            - counter.security_suspicious_events_count        
-#==============================================================================
-  # Monitor failed authentication attempts  
-#==============================================================================
-- id: 'security_failed_auth_monitor'
-  alias: 'Security: Failed Authentication Monitor'
-  description: 'Alert on multiple failed login attempts'
+    - service: script.system_health_check
+    - service: notify.telegram
+      data:
+        title: "🖥️ Daily System Health Report"
+        message: >
+          **System Health Summary:**
+          
+          🖥️ CPU Usage: {{ states('sensor.processor_use') }}%
+          💾 Memory Usage: {{ states('sensor.memory_use_percent') }}%
+          💿 Disk Usage: {{ states('sensor.disk_use_percent_config') }}%
+          ⏰ Uptime: {{ relative_time(states('sensor.last_boot')) }}
+          
+          **Solar System:**
+          🔋 Combined Battery: {{ states('sensor.combined_battery_soc') }}%
+          ⚡ Solar Power: {{ states('sensor.combined_solar_power') }}W
+          🏠 Grid Import: {{ states('sensor.total_grid_import') }}W
+          📤 Grid Export: {{ states('sensor.total_grid_export') }}W
+          
+          **Entity Status:**
+          ✅ Critical Entities: {{ 'OK' if is_state('binary_sensor.all_critical_entities_available', 'on') else 'ISSUES' }}
+          🔋 Battery Sensors: {{ states('sensor.battery_entities_status') }}/4
+          
+          {% if not is_state('binary_sensor.all_critical_entities_available', 'on') %}
+          ⚠️ **Action Required:** Some entities are unavailable.
+          {% endif %}
+  mode: single
+
+# Energy analytics automation
+- id: 'energy_analytics_daily'
+  alias: 'Energy: Daily Analytics Report at 09:00'
+  description: 'Generate daily energy analytics and savings report'
   trigger:
-      - platform: state
-        entity_id: binary_sensor.security_failed_logins
-        to: 'on'
-  action:
-      - service: notify.telegram
-        data:
-          title: "🔒 Security Notice"
-          message: >
-            Failed authentication attempts detected
-            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
-            Check logs: {{ states('sensor.security_log_monitor') }}
-#==============================================================================
-  # Alert on unusual network activity
-#==============================================================================
-- id: 'security_network_monitor'
-  alias: 'Security: Unusual Network Activity'
-  description: 'Monitor for unusual network traffic patterns'
-  trigger:
-      - platform: numeric_state
-        entity_id: sensor.network_in_eth0
-        above: 100  # MB - adjust based on your normal usage
-        for:
-          minutes: 5
+    - platform: time
+      at: '09:00:00'
   condition:
-      # Only trigger during quiet hours
-      - condition: time
-        after: "22:00:00"
-        before: "06:00:00"
+    - condition: state
+      entity_id: input_boolean.telegram_energy_reports
+      state: 'on'
   action:
-      - service: notify.telegram
-        data:
-          title: "📡 Network Security Alert" 
-          message: >
-            Unusual network activity detected during quiet hours
-            Traffic: {{ states('sensor.network_in_eth0') }} MB
-            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
-#==============================================================================
-  # Monitor file system changes
-#==============================================================================
-- id: 'security_file_changes'
-  alias: 'Security: Configuration File Changes'
-  description: 'Alert when configuration files are modified unexpectedly'
+    - service: notify.telegram
+      data:
+        title: "📊 Daily Energy Analytics"
+        message: >
+          **Yesterday's Energy Performance:**
+          
+          ☀️ Solar Generated: {{ states('sensor.daily_solar_generation_combined') }} kWh
+          🏠 Grid Import: {{ states('sensor.daily_grid_import_total') | float(0) | round(2) }} kWh
+          📤 Grid Export: {{ states('sensor.daily_grid_export_total') | float(0) | round(2) }} kWh
+          🌱 Independence: {{ states('sensor.energy_independence_percentage') }}%
+          
+          **Current Status:**
+          🔋 Battery SOC: {{ states('sensor.combined_battery_soc') }}%
+          ⚡ Solar Power: {{ states('sensor.combined_solar_power') }}W
+          💡 Prepaid Left: {{ states('sensor.prepaid_units_left') }} kWh
+          📅 Days Left: {{ states('sensor.days_until_prepaid_empty') }}
+          
+          Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+  mode: single
+
+# Load shedding preparation automation
+- id: 'load_shedding_preparation'
+  alias: 'Load Shedding: Daily Preparation Check at 09:00'
+  description: 'Check battery levels and prepare for potential load shedding'
   trigger:
-      - platform: numeric_state
-        entity_id: sensor.recent_file_changes
-        above: 3  # More than 3 files changed in an hour
+    - platform: time
+      at: '09:00:00'
+    - platform: state
+      entity_id: input_boolean.load_shedding_mode
+      to: 'on'
   condition:
-      # Don't trigger during your typical editing hours
-      - condition: time
-        after: "01:00:00"
-        before: "07:00:00"
+    - condition: or
+      conditions:
+        - condition: state
+          entity_id: input_boolean.load_shedding_mode
+          state: 'on'
+        - condition: numeric_state
+          entity_id: sensor.combined_battery_soc
+          below: 30
   action:
-      - service: notify.telegram
-        data:
-          title: "📁 File System Alert"
-          message: >
-            {{ states('sensor.recent_file_changes') }} configuration files modified during off-hours
-            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
-            Review changes immediately
-#==============================================================================
-  # Daily security summary
-#==============================================================================
-- id: 'security_daily_report'
-  alias: 'Security: Daily Security Report'
-  description: 'Daily summary of security events'
-  trigger:
-      - platform: time
-        at: "08:00:00"  # Adjust to your preferred time
-  action:
-      - service: notify.telegram
-        data:
-          title: "🛡️ Daily Security Report"
-          message: >
-            Security Status Summary:
-            
-            Failed Logins: {{ 'Detected' if is_state('binary_sensor.security_failed_logins', 'on') else 'None' }}
-            Suspicious Activity: {{ 'Detected' if is_state('binary_sensor.security_suspicious_activity', 'on') else 'None' }}
-            Files Modified (24h): {{ states('sensor.recent_file_changes') }}
-            System Load: {{ states('sensor.processor_use') }}%
-            
-            Have a secure day! 🔒
-#xxxxxxxxxxxxxxxxxxxxxxxxxxxXXXXXXXXXXXXXXXXXXXXXXXXXxxxxxx
+    - service: notify.telegram
+      data:
+        title: "🔌 Load Shedding Preparation"
+        message: >
+          **Load Shedding Status Check:**
+          
+          🔋 Battery Level: {{ states('sensor.combined_battery_soc') }}%
+          ⚡ Solar Power: {{ states('sensor.combined_solar_power') }}W
+          🌞 Current Time: {{ now().strftime('%H:%M') }}
+          
+          {% if states('sensor.combined_battery_soc') | float < 30 %}
+          ⚠️ **Battery Low Warning:**
+          Battery below 30% - Consider reducing non-essential loads
+          {% elif states('sensor.combined_battery_soc') | float >= 80 %}
+          ✅ **Battery Well Charged:**
+          Ready for potential load shedding periods
+          {% else %}
+          📊 **Battery Moderate:**
+          Monitor levels throughout the day
+          {% endif %}
+          
+          Load Shedding Mode: {{ 'ACTIVE' if is_state('input_boolean.load_shedding_mode', 'on') else 'STANDBY' }}
+  mode: single

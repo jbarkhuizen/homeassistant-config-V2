@@ -1,0 +1,64 @@
+# InfluxDB Configuration with System Monitoring
+# File: /config/packages/influxdb.yaml
+
+influxdb:  
+    host: localhost
+    port: 8086
+    database: home_assistant
+    username: !secret influxdb_username  # Move to secrets.yaml
+    password: !secret influxdb_password  # Move to secrets.yaml
+    max_retries: 3
+    default_measurement: state
+    include:
+      domains:
+        - sensor
+        - binary_sensor
+      entity_globs:
+        # Your Sunsynk/Deye inverters
+        - "sensor.deyeinvertermaster_*"
+        - "sensor.deyeinverterslave_*"
+        # Prepaid meter
+        - "sensor.prepaid_*"
+        - "input_number.prepaid_*"
+        # Energy monitoring
+        - "sensor.*energy*"
+        - "sensor.*power*"
+        - "sensor.*battery*"
+        # Speed test entities
+        - "sensor.cloudflare_speed_test_*"
+        - "sensor.speedtest_*"
+        - "binary_sensor.speedtest_*"
+        # System monitoring
+        - "sensor.processor_*"
+        - "sensor.memory_*"
+        - "sensor.disk_*"
+        - "sensor.swap_*"
+        - "sensor.system_*"
+        - "sensor.load_*"
+        - "sensor.throughput_*"
+        - "sensor.packets_*"
+        - "sensor.ipv4_*"
+        - "sensor.last_boot"
+        - "binary_sensor.system_*"
+        - "sensor.cpu_usage_*"
+        - "sensor.memory_usage_*"
+        # Battery Management
+        - "sensor.*battery*"
+        - "sensor.battery_status_summary"
+        - "binary_sensor.battery_*_alert"
+# ==============================================================================
+    # Exclude noisy entities
+# ==============================================================================
+    exclude:
+      entities:
+        - sensor.time
+        - sensor.date
+      entity_globs:
+        - "automation.*"
+# ==============================================================================
+    # Add tags for better organization
+# ==============================================================================
+    tags:
+      source: home_assistant
+      location: pretoria
+      system: solar_monitoring

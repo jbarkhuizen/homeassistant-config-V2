@@ -1,88 +1,105 @@
-#Initial Config
-# Loads default set of integrations. Do not remove.
+#===============================================================================
+# Home Assistant Main Configuration
+# File: configuration.yaml
+# Updated: 2025-08-22
+# Note: Sensors moved to packages/integration_sensors.yaml
+#===============================================================================
+
+# Initial Config - Loads default set of integrations. Do not remove.
 default_config:
+
 #-------------------------------------------------------------------------------
 # Text to speech default config
 tts:
   - platform: google_translate  
+
 #-------------------------------------------------------------------------------  
 # Load frontend themes from the themes folder
 frontend:
   themes: !include_dir_merge_named themes
+
 #-------------------------------------------------------------------------------  
+# HTTP Configuration
 http:
   cors_allowed_origins:
     - "http://localhost"
     - "http://127.0.0.1"
     - "http://192.168.1.30"
   use_x_frame_options: false    
+
 #-------------------------------------------------------------------------------
+# Include Files
 automation: !include automations.yaml
 script: !include scripts.yaml
 scene: !include scenes.yaml
-# template: !include template.yaml    #we include template file here, soon replaced by packages folder
-# template: !include template_MasterSlave_System.yaml  #change the config file depending on your system
+
 #-------------------------------------------------------------------------------
-# Sunsynk Inclusions
-# Added on 7 Aug 2025 @ 13h16 by JB
+# Packages Configuration - Load all packages
 homeassistant: 
   packages: !include_dir_named packages
+
 #-------------------------------------------------------------------------------
-# Sunsynk Inclusions
-# Added on 7 Aug 2025 @ 13h16 by JB
-# Telegram Bot config now in packages/telegram.yaml
-
-# The sensor below keeps the minimum soc of the battery for the last 12 hours,
-#only removed from DeyeSolarDesktop, not important
-# sensor:
-#   - platform: statistics
-#     name: "min_soc_battery"
-#     entity_id: sensor.deyeinverter_battery_soc
-#     state_characteristic: value_min
-#     max_age:
-#       hours: 12
-#     sampling_size: 144
-
-sensor:
-  - platform: integration
-    name: deyeinvertermaster_summary_total_battery_charge_grid
-    source: sensor.deyeinvertermaster_battery_charge_grid_power
-    method: left
-
-  - platform: integration
-    name: deyeinverterslave_summary_total_battery_charge_grid
-    source: sensor.deyeinverterslave_battery_charge_grid_power
-    method: left
-
-utility_meter:
-  master_energy_battery_charge_grid:
-    name: deyeinvertermaster_summary_day_battery_charge_grid
-    source: sensor.deyeinvertermaster_summary_total_battery_charge_grid
-    cycle: daily
-
-  slave_energy_battery_charge_grid:
-    name: deyeinverterslave_summary_day_battery_charge_grid
-    source: sensor.deyeinverterslave_summary_total_battery_charge_grid
-    cycle: daily
-#-------------------------------------------------------------------------------      
-# GitHub Commit Shell
-# Added with Claude.ai on 20 Aug 2025
+# Shell Commands
 shell_command:
   git_commit: '/config/scripts/git_commit.sh'
   export_sensor_list: >
-    bash -c "hass-cli entity list | grep ^sensor. > /config/sensor_list.txt"
-  update_readme: '/config/scripts/update_readme.sh'
+    bash -c "hass-cli entity list | grep ^sensor."
+  restart_deye_integration: >
+    curl -X POST -H "Authorization: Bearer YOUR_TOKEN" \
+    -H "Content-Type: application/json" \
+    http://localhost:8123/api/config/config_entries/reload
+  backup_config: >
+    cp -r /config /backup/ha-config-$(date +%Y%m%d_%H%M%S)
+  check_entity_status: >
+    bash -c "hass-cli entity list | grep -E '(unknown|unavailable)'"
 
 #-------------------------------------------------------------------------------
-# Security Logging
-# Added with Claude.ai on 20 Aug 2025
-logger:
-  default: info
-  logs:
-    homeassistant.components.websocket_api: debug
-    homeassistant.components.http.ban: warning
-    custom_components: warning
-    homeassistant.components.smtp: debug
-    homeassistant.components.notify: debug
-    homeassistant.components.automation: info
+
 #-------------------------------------------------------------------------------
+# Recorder Configuration (Basic - Extended in packages)
+recorder:
+  # Keep 7 days of history for performance
+  purge_keep_days: 7
+  # Exclude some noisy entities
+  exclude:
+    domains:
+      - automation
+      - updater
+      - camera
+    entity_globs:
+      - sensor.time*
+      - sensor.date*
+    entities:
+      - sun.sun
+      - weather.forecast_home
+
+#-------------------------------------------------------------------------------
+# Logger Configuration
+logger:
+  default: warning
+  logs:
+    # Monitor integration issues
+    custom_components.deye_solar: info
+    custom_components.localtuya: warning
+    custom_components.battery_discovery: info
+    homeassistant.components.mqtt: warning
+    homeassistant.components.telegram_bot: info
+    # Monitor entity issues
+    homeassistant.helpers.entity: warning
+    homeassistant.helpers.template: warning
+
+#-------------------------------------------------------------------------------
+# Energy Configuration
+energy:
+  # This will be configured via UI, but we document the key entities here
+  # Grid consumption: sensor.total_grid_import
+  # Grid return: sensor.total_grid_export  
+  # Solar production: sensor.combined_solar_power
+  # Battery storage: sensor.combined_battery_soc
+
+#-------------------------------------------------------------------------------
+# Comments for removed sections:
+# - sensor: Moved to packages/integration_sensors.yaml
+# - utility_meter: Moved to packages/integration_sensors.yaml
+# - telegram_bot: Moved to packages/telegram_enhanced.yaml
+# - template: Will be in various packages as needed
