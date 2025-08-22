@@ -1,5 +1,7 @@
+#===============================================================================
 # Working Speed Test Package
 # File: /config/packages/speedtest.yaml
+#===============================================================================
 
 # ==============================================================================
 # TEMPLATE SENSORS USING EXISTING CLOUDFLARE ENTITIES
@@ -137,107 +139,3 @@ counter:
     name: "Internet Alerts Today"
     icon: mdi:alert-circle
     step: 1
-
-# ==============================================================================
-# BASIC AUTOMATION
-# ==============================================================================
-
-automation:
-  # Reset counter daily
-  - id: internet_reset_daily_counter
-    alias: "Internet: Reset Daily Counter"
-    trigger:
-      - platform: time
-        at: "00:00:01"
-    action:
-      - service: counter.reset
-        target:
-          entity_id: counter.internet_alerts_today
-
-  # Simple speed alert
-  - id: internet_speed_alert_simple
-    alias: "Internet: Speed Alert"
-    trigger:
-      - platform: state
-        entity_id: binary_sensor.internet_speed_slow
-        to: "on"
-        for:
-          minutes: 5
-    action:
-      - service: counter.increment
-        target:
-          entity_id: counter.internet_alerts_today
-      - service: notify.telegram
-        data:
-          title: "🌐 Internet Speed Alert"
-          message: >
-            Internet speed is slow!
-            
-            Download: {{ states('sensor.cloudflare_speed_test_90th_percentile_down') }} Mbps
-            Upload: {{ states('sensor.cloudflare_speed_test_90th_percentile_up') }} Mbps
-            Latency: {{ states('sensor.cloudflare_speed_test_latency') }} ms
-            Quality: {{ states('sensor.internet_quality_grade') }}
-            
-            Time: {{ now().strftime('%H:%M:%S') }}
-
-  # Recovery notification
-  - id: internet_speed_recovery
-    alias: "Internet: Speed Recovery"
-    trigger:
-      - platform: state
-        entity_id: binary_sensor.internet_speed_slow
-        to: "off"
-        for:
-          minutes: 10
-    action:
-      - service: notify.telegram
-        data:
-          title: "✅ Internet Speed Recovered"
-          message: >
-            Internet speed has returned to normal!
-            Download: {{ states('sensor.cloudflare_speed_test_90th_percentile_down') }} Mbps
-            Quality: {{ states('sensor.internet_quality_grade') }}"
-
-# ==============================================================================
-# AUTOMATION FOR MANUAL TEST
-# ==============================================================================
-
-automation:
-  - id: manual_speed_test_trigger
-    alias: "Manual Speed Test: Trigger"
-    trigger:
-      - platform: state
-        entity_id: input_button.manual_speed_test
-    action:
-      - service: script.run_cloudflare_speed_test
-      
-# Manual Speed Test Automation
-# Added with Claude.ai on 22 Aug 2025 @08h30
-  - id: internet_manual_test_notification
-    alias: "Internet: Manual Test Completed"
-    trigger:
-      - platform: state
-        entity_id: 
-          - sensor.cloudflare_speed_test_90th_percentile_down
-          - sensor.cloudflare_speed_test_90th_percentile_up
-        for:
-          seconds: 5
-    condition:
-      - condition: template
-        value_template: "{{ trigger.to_state.state != trigger.from_state.state }}"
-    action:
-      - service: notify.telegram
-        data:
-          title: "✅ Manual Speed Test Complete"
-          message: >
-            Speed test results:
-            
-            📈 Download: {{ states('sensor.cloudflare_speed_test_90th_percentile_down') }} Mbps
-            📉 Upload: {{ states('sensor.cloudflare_speed_test_90th_percentile_up') }} Mbps
-            ⏱️ Latency: {{ states('sensor.cloudflare_speed_test_latency') }} ms
-            📊 Jitter: {{ states('sensor.cloudflare_speed_test_jitter') }} ms
-            🌐 ISP: {{ states('sensor.cloudflare_speed_test_isp') }}
-            
-            Time: {{ now().strftime('%H:%M:%S') }}     
-            
-# =================================================================

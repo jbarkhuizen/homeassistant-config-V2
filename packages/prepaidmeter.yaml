@@ -1,5 +1,7 @@
+#===============================================================================
 # Sunsynk Inclusions
 # Added on 7 Aug 2025 @ 13h16 by JB
+#===============================================================================
 template:
   - sensor:
       - name: "Prepaid units left"
@@ -24,3 +26,4 @@ input_number:
     min: 0.01
     max: 1000000.01
     mode: box
+#xxxxxxxxxxxxxxxxxxxxxxxxxxxXXXXXXXXXXXXXXXXXXXXXXXXXxxxxxxxxxxxxxxxxxxxxxxxxxxx

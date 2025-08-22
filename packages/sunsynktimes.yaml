@@ -1,5 +1,7 @@
+#===============================================================================
 #These entries below define data fields to store the TimeOfUse values on home_assistant side
 #The automation will take a change in value and populate the value on the inverter accordingly
+#===============================================================================
 input_datetime:
   timezone1_time:
     name: Timezone 1 Time

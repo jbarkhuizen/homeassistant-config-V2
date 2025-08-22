@@ -1,5 +1,7 @@
+#===============================================================================
 # Sunsynk Inclusions
 # Added on 7 Aug 2025 @ 13h16 by JB
+#===============================================================================
 - id: '1717429630744'
   alias: Prepaid meter recharge
   description: ''
@@ -19,7 +21,7 @@
     target:
       entity_id: input_number.prepaid_meter_inverter_total_units
   mode: single
-  #-------------------------------------------------------------------------------
+#xxxxxxxxxxxxxxxxxxxxxxxxxxxXXXXXXXXXXXXXXXXXXXXXXXXXxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # GitHub commit
 # Added on 20 aug 2025 @ 11h18 with Claude.ai
 #- id: 'git_auto_commit'
@@ -42,9 +44,11 @@
 #    - service: shell_command.git_commit
 #      data: {}
 #  mode: single
-#-------------------------------------------------------------------------------  
+#xxxxxxxxxxxxxxxxxxxxxxxxxxxXXXXXXXXXXXXXXXXXXXXXXXXXxxxxxxxxxxxxxxxxxxxxxxxxxxx  
+#===============================================================================
 # Sunsynk Inclusions
 # Added on 7 Aug 2025 @ 13h16 by JB
+#===============================================================================
 - id: '1686299812078'
   alias: 'Inverter: Switch to Export essentials/Non-Essentials when sun sets/rises'
   description: This stops the export to non-essentials from the battery when the sun
@@ -81,9 +85,11 @@
           entity_id: select.deyeinvertermaster_load_limit_exp_ess_non_ess
   mode: single
 
-#-------------------------------------------------------------------------------
+#xxxxxxxxxxxxxxxxxxxxxxxxxxxXXXXXXXXXXXXXXXXXXXXXXXXXxxxxxxxxxxxxxxxxxxxxxxxxxxx
+#===============================================================================
 # Speedtest Review
 #Added by Claude.ai on 21 Aug 2025  
+#===============================================================================
 - alias: 'Weekly Speed Test Review'
   trigger:
       - platform: time
@@ -109,8 +115,10 @@
             • Consider ISP contact if persistent issues
             
             🔗 Dashboard: http://192.168.1.30:8123/lovelace/speedtest  
-#-------------------------------------------------------------------------------
+#xxxxxxxxxxxxxxxxxxxxxxxxxxxXXXXXXXXXXXXXXXXXXXXXXXXXxxxxxxxxxxxxxxxxxxxxxxxxxxx
+#===============================================================================
 # Git Sync Monitoring and Automatic Backup
+#===============================================================================
 - alias: "GitHub Sync - Daily Backup"
   description: "Automatically commit and push configuration changes daily"
   trigger:
@@ -160,3 +168,242 @@
         title: "GitHub Sync Failed"
         message: "Failed to sync configuration to GitHub. Check logs for details."
         notification_id: "git_sync_failure"  
+#xxxxxxxxxxxxxxxxxxxxxxxxxxxXXXXXXXXXXXXXXXXXXXXXXXXXxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# ==============================================================================
+# AUTOMATION FOR MANUAL TEST
+# Moved from speedtest.yaml on 21 Aug 2025 @ 09h30
+# ==============================================================================
+- id: manual_speed_test_trigger
+  alias: "Manual Speed Test: Trigger"
+  trigger:
+  - platform: state
+    entity_id: input_button.manual_speed_test
+  action:
+      - service: script.run_cloudflare_speed_test
+#===============================================================================      
+# Manual Speed Test Automation
+# Added with Claude.ai on 22 Aug 2025 @08h30
+#===============================================================================
+- id: internet_manual_test_notification
+  alias: "Internet: Manual Test Completed"
+  trigger:
+      - platform: state
+        entity_id: 
+          - sensor.cloudflare_speed_test_90th_percentile_down
+          - sensor.cloudflare_speed_test_90th_percentile_up
+        for:
+          seconds: 5
+  condition:
+      - condition: template
+        value_template: "{{ trigger.to_state.state != trigger.from_state.state }}"
+  action:
+      - service: notify.telegram
+        data:
+          title: "✅ Manual Speed Test Complete"
+          message: >
+            Speed test results:
+            
+            📈 Download: {{ states('sensor.cloudflare_speed_test_90th_percentile_down') }} Mbps
+            📉 Upload: {{ states('sensor.cloudflare_speed_test_90th_percentile_up') }} Mbps
+            ⏱️ Latency: {{ states('sensor.cloudflare_speed_test_latency') }} ms
+            📊 Jitter: {{ states('sensor.cloudflare_speed_test_jitter') }} ms
+            🌐 ISP: {{ states('sensor.cloudflare_speed_test_isp') }}
+            
+            Time: {{ now().strftime('%H:%M:%S') }}     
+#xxxxxxxxxxxxxxxxxxxxxxxxxxxXXXXXXXXXXXXXXXXXXXXXXXXXxxxxxxxxxxxxxxxxxxxxxxxxxxx
+#===============================================================================  
+  # Reset counter daily
+#===============================================================================  
+- id: internet_reset_daily_counter
+  alias: "Internet: Reset Daily Counter"
+  trigger:
+      - platform: time
+        at: "00:00:01"
+  action:
+      - service: counter.reset
+        target:
+          entity_id: counter.internet_alerts_today
+#===============================================================================
+  # Simple speed alert
+#===============================================================================  
+- id: internet_speed_alert_simple
+  alias: "Internet: Speed Alert"
+  trigger:
+      - platform: state
+        entity_id: binary_sensor.internet_speed_slow
+        to: "on"
+        for:
+          minutes: 5
+  action:
+      - service: counter.increment
+        target:
+          entity_id: counter.internet_alerts_today
+      - service: notify.telegram
+        data:
+          title: "🌐 Internet Speed Alert"
+          message: >
+            Internet speed is slow!
+            
+            Download: {{ states('sensor.cloudflare_speed_test_90th_percentile_down') }} Mbps
+            Upload: {{ states('sensor.cloudflare_speed_test_90th_percentile_up') }} Mbps
+            Latency: {{ states('sensor.cloudflare_speed_test_latency') }} ms
+            Quality: {{ states('sensor.internet_quality_grade') }}
+            
+            Time: {{ now().strftime('%H:%M:%S') }}
+#===============================================================================
+  # Recovery notification
+#===============================================================================  
+- id: internet_speed_recovery
+  alias: "Internet: Speed Recovery"
+  trigger:
+      - platform: state
+        entity_id: binary_sensor.internet_speed_slow
+        to: "off"
+        for:
+          minutes: 10
+  action:
+      - service: notify.telegram
+        data:
+          title: "✅ Internet Speed Recovered"
+          message: >
+            Internet speed has returned to normal!
+            Download: {{ states('sensor.cloudflare_speed_test_90th_percentile_down') }} Mbps
+            Quality: {{ states('sensor.internet_quality_grade') }}" 
+#xxxxxxxxxxxxxxxxxxxxxxxxxxxXXXXXXXXXXXXXXXXXXXXXXXXXxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# ==============================================================================
+# SECURITY AUTOMATIONS
+# ==============================================================================
+  # Alert on config_editor activity (before removal)
+- id: 'security_config_editor_activity'
+  alias: 'Security: config_editor Activity Detected'
+  description: 'Alert when config_editor component is accessed'
+  trigger:
+      - platform: state
+        entity_id: binary_sensor.security_suspicious_activity
+        to: 'on'
+      - platform: event
+        event_type: system_log_event
+        event_data:
+          name: homeassistant.components.websocket_api
+  condition:
+      - condition: template
+        value_template: >
+          {{ 'config_editor' in trigger.event.data.message | default('') or
+             'config_editor' in states('sensor.security_log_monitor') }}
+  action:
+      - service: notify.telegram
+        data:
+          title: "🚨 CRITICAL SECURITY ALERT"
+          message: >
+            config_editor component activity detected!
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+            Trigger: {{ trigger.event.data.message | default('Sensor Detection') }}
+            Action: Investigate immediately and consider removing component
+      - service: persistent_notification.create
+        data:
+          title: "Security Alert"
+          message: "config_editor activity detected - check logs immediately"
+          notification_id: "security_config_editor"
+#==============================================================================
+  # Reset counters daily
+#==============================================================================
+- id: 'security_reset_daily_counters'
+  alias: 'Security: Reset Daily Counters'
+  trigger:
+      - platform: time
+        at: "00:00:01"
+  action:
+      - service: counter.reset
+        target:
+          entity_id:
+            - counter.security_failed_logins_count
+            - counter.security_suspicious_events_count        
+#==============================================================================
+  # Monitor failed authentication attempts  
+#==============================================================================
+- id: 'security_failed_auth_monitor'
+  alias: 'Security: Failed Authentication Monitor'
+  description: 'Alert on multiple failed login attempts'
+  trigger:
+      - platform: state
+        entity_id: binary_sensor.security_failed_logins
+        to: 'on'
+  action:
+      - service: notify.telegram
+        data:
+          title: "🔒 Security Notice"
+          message: >
+            Failed authentication attempts detected
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+            Check logs: {{ states('sensor.security_log_monitor') }}
+#==============================================================================
+  # Alert on unusual network activity
+#==============================================================================
+- id: 'security_network_monitor'
+  alias: 'Security: Unusual Network Activity'
+  description: 'Monitor for unusual network traffic patterns'
+  trigger:
+      - platform: numeric_state
+        entity_id: sensor.network_in_eth0
+        above: 100  # MB - adjust based on your normal usage
+        for:
+          minutes: 5
+  condition:
+      # Only trigger during quiet hours
+      - condition: time
+        after: "22:00:00"
+        before: "06:00:00"
+  action:
+      - service: notify.telegram
+        data:
+          title: "📡 Network Security Alert" 
+          message: >
+            Unusual network activity detected during quiet hours
+            Traffic: {{ states('sensor.network_in_eth0') }} MB
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+#==============================================================================
+  # Monitor file system changes
+#==============================================================================
+- id: 'security_file_changes'
+  alias: 'Security: Configuration File Changes'
+  description: 'Alert when configuration files are modified unexpectedly'
+  trigger:
+      - platform: numeric_state
+        entity_id: sensor.recent_file_changes
+        above: 3  # More than 3 files changed in an hour
+  condition:
+      # Don't trigger during your typical editing hours
+      - condition: time
+        after: "01:00:00"
+        before: "07:00:00"
+  action:
+      - service: notify.telegram
+        data:
+          title: "📁 File System Alert"
+          message: >
+            {{ states('sensor.recent_file_changes') }} configuration files modified during off-hours
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+            Review changes immediately
+#==============================================================================
+  # Daily security summary
+#==============================================================================
+- id: 'security_daily_report'
+  alias: 'Security: Daily Security Report'
+  description: 'Daily summary of security events'
+  trigger:
+      - platform: time
+        at: "08:00:00"  # Adjust to your preferred time
+  action:
+      - service: notify.telegram
+        data:
+          title: "🛡️ Daily Security Report"
+          message: >
+            Security Status Summary:
+            
+            Failed Logins: {{ 'Detected' if is_state('binary_sensor.security_failed_logins', 'on') else 'None' }}
+            Suspicious Activity: {{ 'Detected' if is_state('binary_sensor.security_suspicious_activity', 'on') else 'None' }}
+            Files Modified (24h): {{ states('sensor.recent_file_changes') }}
+            System Load: {{ states('sensor.processor_use') }}%
+            
+            Have a secure day! 🔒
+#xxxxxxxxxxxxxxxxxxxxxxxxxxxXXXXXXXXXXXXXXXXXXXXXXXXXxxxxxx

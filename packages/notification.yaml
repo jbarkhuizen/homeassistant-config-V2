@@ -10,7 +10,7 @@ notify:
     password: !secret gmail_token
     recipient: jbarkhuizen@gmail.com
     sender_name: Home Assistant Notification Alert
-
+#xxxxxxxxxxxxxxxxxxxxxxxxxxxXXXXXXXXXXXXXXXXXXXXXXXXXxxxxxxxxxxxxxxxxxxxxxxxxxxx
   - name: email_alerts_speedtest
     platform: smtp
     server: smtp.gmail.com
@@ -22,3 +22,4 @@ notify:
     password: !secret gmail_token
     recipient: jbarkhuizen@gmail.com
     sender_name: "Home Assistant Speed Monitor"  
+#xxxxxxxxxxxxxxxxxxxxxxxxxxxXXXXXXXXXXXXXXXXXXXXXXXXXxxxxxxxxxxxxxxxxxxxxxxxxxxx

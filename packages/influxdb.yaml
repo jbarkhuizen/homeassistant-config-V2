@@ -42,16 +42,18 @@ influxdb:
         - "binary_sensor.system_*"
         - "sensor.cpu_usage_*"
         - "sensor.memory_usage_*"
-        
+# ==============================================================================
     # Exclude noisy entities
+# ==============================================================================
     exclude:
       entities:
         - sensor.time
         - sensor.date
       entity_globs:
         - "automation.*"
-
+# ==============================================================================
     # Add tags for better organization
+# ==============================================================================
     tags:
       source: home_assistant
       location: pretoria
