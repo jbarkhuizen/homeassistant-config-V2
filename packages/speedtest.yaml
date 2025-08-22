@@ -1,5 +1,5 @@
 # Working Speed Test Package
-# File: /config/packages/speedtest_fixed.yaml
+# File: /config/packages/speedtest.yaml
 
 # ==============================================================================
 # TEMPLATE SENSORS USING EXISTING CLOUDFLARE ENTITIES
@@ -167,10 +167,9 @@ automation:
       - service: counter.increment
         target:
           entity_id: counter.internet_alerts_today
-      - service: 
-        notify.telegram
+      - service: notify.telegram
         data:
-          title: " Internet Speed Alert"
+          title: "🌐 Internet Speed Alert"
           message: >
             Internet speed is slow!
             
@@ -197,4 +196,4 @@ automation:
           message: >
             Internet speed has returned to normal!
             Download: {{ states('sensor.cloudflare_speed_test_90th_percentile_down') }} Mbps
-            Quality: {{ states('sensor.internet_quality_grade') }}
+            Quality: {{ states('sensor.internet_quality_grade') }}"

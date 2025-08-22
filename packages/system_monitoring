@@ -1,0 +1,484 @@
+# System Monitoring Package
+# File: /config/packages/system_monitoring.yaml
+
+# ==============================================================================
+# SYSTEM MONITOR SENSORS
+# ==============================================================================
+
+sensor:
+  # System Monitor Platform
+  - platform: systemmonitor
+    resources:
+      - type: processor_use
+      - type: processor_temperature
+      - type: memory_use_percent
+      - type: memory_use
+      - type: memory_free
+      - type: memory_available
+      - type: swap_use_percent
+      - type: swap_use
+      - type: swap_free
+      - type: disk_use_percent
+        arg: /
+      - type: disk_use
+        arg: /
+      - type: disk_free
+        arg: /
+      - type: network_in
+        arg: eth0
+      - type: network_out
+        arg: eth0
+      - type: throughput_network_in
+        arg: eth0
+      - type: throughput_network_out
+        arg: eth0
+      - type: packets_in
+        arg: eth0
+      - type: packets_out
+        arg: eth0
+      - type: ipv4_address
+        arg: eth0
+      - type: load_1m
+      - type: load_5m
+      - type: load_15m
+      - type: last_boot
+
+  # Uptime sensor
+  - platform: uptime
+    name: Uptime
+    unit_of_measurement: hours
+
+  # Version sensors
+  - platform: version
+    name: Current Version
+    source: local
+
+  - platform: version
+    name: Latest Version
+    source: docker
+
+  # Database size sensor
+  - platform: sql
+    db_url: !secret recorder_db_url
+    queries:
+      - name: Home Assistant Database Size
+        query: 'SELECT ROUND(page_count * page_size / 1024.0 / 1024.0, 2) as size FROM pragma_page_count(), pragma_page_size();'
+        column: 'size'
+        unit_of_measurement: MB
+
+  # Command line sensors for additional metrics
+  - platform: command_line
+    name: CPU Temperature
+    command: "cat /sys/class/thermal/thermal_zone0/temp"
+    unit_of_measurement: "°C"
+    value_template: '{{ value | multiply(0.001) | round(1) }}'
+    scan_interval: 60
+
+  - platform: command_line
+    name: Devices Connected
+    command: "nmap -sn 192.168.1.0/24 | grep 'Nmap done' | cut -d ' ' -f 5 | cut -d '(' -f 2"
+    unit_of_measurement: "devices"
+    scan_interval: 300
+
+  # File size sensors
+  - platform: filesize
+    file_paths:
+      - /config/home-assistant_v2.db
+      - /config/home-assistant.log
+
+  # Template sensors for calculated values
+  - platform: template
+    sensors:
+      memory_use_mb:
+        friendly_name: "Memory Use MB"
+        unit_of_measurement: "MB"
+        value_template: "{{ (states('sensor.memory_use') | float * 1024) | round(0) }}"
+        icon_template: mdi:memory
+
+      memory_free_percent:
+        friendly_name: "Memory Free Percent"
+        unit_of_measurement: "%"
+        value_template: "{{ (100 - states('sensor.memory_use_percent') | float) | round(1) }}"
+        icon_template: mdi:memory
+
+      disk_use_gb:
+        friendly_name: "Disk Use GB"
+        unit_of_measurement: "GB"
+        value_template: "{{ states('sensor.disk_use') | float | round(1) }}"
+        icon_template: mdi:harddisk
+
+      disk_free_gb:
+        friendly_name: "Disk Free GB"
+        unit_of_measurement: "GB"
+        value_template: "{{ states('sensor.disk_free') | float | round(1) }}"
+        icon_template: mdi:harddisk
+
+      network_in_mb:
+        friendly_name: "Network In Total"
+        unit_of_measurement: "MB"
+        value_template: "{{ (states('sensor.network_in_eth0') | float) | round(2) }}"
+        icon_template: mdi:download-network
+
+      network_out_mb:
+        friendly_name: "Network Out Total"
+        unit_of_measurement: "MB"
+        value_template: "{{ (states('sensor.network_out_eth0') | float) | round(2) }}"
+        icon_template: mdi:upload-network
+
+      system_health_score:
+        friendly_name: "System Health Score"
+        unit_of_measurement: "%"
+        value_template: >
+          {% set cpu_score = 100 - (states('sensor.processor_use_percent') | float) %}
+          {% set memory_score = 100 - (states('sensor.memory_use_percent') | float) %}
+          {% set disk_score = 100 - (states('sensor.disk_use_percent') | float) %}
+          {% set temp_score = 100 - ((states('sensor.processor_temperature') | float - 30) * 2) %}
+          {{ ((cpu_score + memory_score + disk_score + temp_score) / 4) | round(0) }}
+        icon_template: >
+          {% set score = states('sensor.system_health_score') | float %}
+          {% if score > 80 %}
+            mdi:shield-check
+          {% elif score > 60 %}
+            mdi:shield-outline
+          {% else %}
+            mdi:shield-alert
+          {% endif %}
+
+      recorder_backlog:
+        friendly_name: "Recorder Backlog"
+        value_template: "{{ state_attr('sensor.recorder_backlog', 'backlog') | default(0) }}"
+        unit_of_measurement: "events"
+        icon_template: mdi:database-clock
+
+# ==============================================================================
+# BINARY SENSORS FOR ALERTS
+# ==============================================================================
+
+binary_sensor:
+  - platform: template
+    sensors:
+      cpu_high_usage:
+        friendly_name: "CPU High Usage"
+        value_template: "{{ states('sensor.processor_use_percent') | float > 80 }}"
+        icon_template: >
+          {% if is_state('binary_sensor.cpu_high_usage', 'on') %}
+            mdi:cpu-64-bit
+          {% else %}
+            mdi:cpu-64-bit
+          {% endif %}
+        delay_on:
+          minutes: 5
+
+      memory_high_usage:
+        friendly_name: "Memory High Usage"
+        value_template: "{{ states('sensor.memory_use_percent') | float > 85 }}"
+        icon_template: mdi:memory
+        delay_on:
+          minutes: 5
+
+      disk_space_low:
+        friendly_name: "Disk Space Low"
+        value_template: "{{ states('sensor.disk_use_percent') | float > 90 }}"
+        icon_template: mdi:harddisk-alert
+        delay_on:
+          minutes: 10
+
+      database_large:
+        friendly_name: "Database Large"
+        value_template: "{{ states('sensor.home_assistant_database_size') | float > 2000 }}"
+        icon_template: mdi:database-alert
+
+      high_temperature:
+        friendly_name: "High Temperature"
+        value_template: "{{ states('sensor.processor_temperature') | float > 70 }}"
+        icon_template: mdi:thermometer-alert
+        delay_on:
+          minutes: 5
+
+      home_assistant_running:
+        friendly_name: "Home Assistant Running"
+        value_template: "{{ is_state('system.home_assistant', 'on') }}"
+        icon_template: mdi:home-assistant
+
+# ==============================================================================
+# INPUT NUMBERS FOR THRESHOLDS
+# ==============================================================================
+
+input_number:
+  cpu_alert_threshold:
+    name: CPU Alert Threshold
+    min: 50
+    max: 100
+    step: 5
+    initial: 80
+    unit_of_measurement: "%"
+    icon: mdi:cpu-64-bit
+
+  memory_alert_threshold:
+    name: Memory Alert Threshold
+    min: 50
+    max: 100
+    step: 5
+    initial: 85
+    unit_of_measurement: "%"
+    icon: mdi:memory
+
+  disk_alert_threshold:
+    name: Disk Alert Threshold
+    min: 60
+    max: 95
+    step: 5
+    initial: 90
+    unit_of_measurement: "%"
+    icon: mdi:harddisk
+
+  temperature_alert_threshold:
+    name: Temperature Alert Threshold
+    min: 50
+    max: 90
+    step: 5
+    initial: 70
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer
+
+# ==============================================================================
+# COUNTERS
+# ==============================================================================
+
+counter:
+  system_warnings_today:
+    name: System Warnings Today
+    icon: mdi:alert-circle
+    step: 1
+
+# ==============================================================================
+# AUTOMATIONS
+# ==============================================================================
+
+automation:
+  # Reset counter daily
+  - id: system_reset_daily_counter
+    alias: "System: Reset Daily Counter"
+    trigger:
+      - platform: time
+        at: "00:00:01"
+    action:
+      - service: counter.reset
+        target:
+          entity_id: counter.system_warnings_today
+
+  # High CPU usage alert
+  - id: system_high_cpu_alert
+    alias: "System: High CPU Alert"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.processor_use_percent
+        above: input_number.cpu_alert_threshold
+        for:
+          minutes: 5
+    action:
+      - service: counter.increment
+        target:
+          entity_id: counter.system_warnings_today
+      - service: notify.persistent_notification
+        data:
+          title: "⚠️ High CPU Usage"
+          message: >
+            CPU usage is at {{ states('sensor.processor_use_percent') }}%
+            
+            Load averages:
+            - 1 min: {{ states('sensor.load_1m') }}
+            - 5 min: {{ states('sensor.load_5m') }}
+            - 15 min: {{ states('sensor.load_15m') }}
+            
+            Time: {{ now().strftime('%H:%M:%S') }}
+
+  # High memory usage alert
+  - id: system_high_memory_alert
+    alias: "System: High Memory Alert"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.memory_use_percent
+        above: input_number.memory_alert_threshold
+        for:
+          minutes: 5
+    action:
+      - service: counter.increment
+        target:
+          entity_id: counter.system_warnings_today
+      - service: notify.persistent_notification
+        data:
+          title: "⚠️ High Memory Usage"
+          message: >
+            Memory usage is at {{ states('sensor.memory_use_percent') }}%
+            
+            Free memory: {{ states('sensor.memory_free') }} MB
+            Available: {{ states('sensor.memory_available') }} MB
+            
+            Consider restarting Home Assistant if this persists.
+
+  # Low disk space alert
+  - id: system_low_disk_alert
+    alias: "System: Low Disk Space Alert"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.disk_use_percent
+        above: input_number.disk_alert_threshold
+    action:
+      - service: counter.increment
+        target:
+          entity_id: counter.system_warnings_today
+      - service: notify.persistent_notification
+        data:
+          title: "⚠️ Low Disk Space"
+          message: >
+            Disk usage is at {{ states('sensor.disk_use_percent') }}%
+            
+            Free space: {{ states('sensor.disk_free_gb') }} GB
+            Database size: {{ states('sensor.home_assistant_database_size') }} MB
+            
+            Consider:
+            - Purging old recorder data
+            - Removing old backups
+            - Clearing logs
+
+  # High temperature alert
+  - id: system_high_temperature_alert
+    alias: "System: High Temperature Alert"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.processor_temperature
+        above: input_number.temperature_alert_threshold
+        for:
+          minutes: 5
+    action:
+      - service: counter.increment
+        target:
+          entity_id: counter.system_warnings_today
+      - service: notify.persistent_notification
+        data:
+          title: "🔥 High Temperature Warning"
+          message: >
+            CPU temperature is {{ states('sensor.processor_temperature') }}°C
+            
+            This may cause system instability.
+            Check cooling and ventilation.
+
+  # Database maintenance
+  - id: system_database_maintenance
+    alias: "System: Database Maintenance"
+    trigger:
+      - platform: time
+        at: "03:00:00"
+    condition:
+      - condition: numeric_state
+        entity_id: sensor.home_assistant_database_size
+        above: 1500
+    action:
+      - service: recorder.purge
+        data:
+          keep_days: 7
+          repack: true
+      - service: notify.persistent_notification
+        data:
+          title: "🗄️ Database Maintenance"
+          message: >
+            Database maintenance completed.
+            Size before: {{ states('sensor.home_assistant_database_size') }} MB
+
+  # Weekly system report
+  - id: system_weekly_report
+    alias: "System: Weekly Report"
+    trigger:
+      - platform: time
+        at: "09:00:00"
+    condition:
+      - condition: time
+        weekday:
+          - sun
+    action:
+      - service: notify.persistent_notification
+        data:
+          title: "📊 Weekly System Report"
+          message: >
+            **System Performance Summary**
+            
+            📈 **Average Usage (Week):**
+            • CPU: {{ state_attr('sensor.processor_use_percent', 'mean') | round(1) }}%
+            • Memory: {{ state_attr('sensor.memory_use_percent', 'mean') | round(1) }}%
+            • Disk: {{ states('sensor.disk_use_percent') }}%
+            
+            🌡️ **Temperature:**
+            • Current: {{ states('sensor.processor_temperature') }}°C
+            • Peak: {{ state_attr('sensor.processor_temperature', 'max') | round(1) }}°C
+            
+            💾 **Storage:**
+            • Database: {{ states('sensor.home_assistant_database_size') }} MB
+            • Free Space: {{ states('sensor.disk_free_gb') }} GB
+            
+            ⚠️ **Alerts This Week:**
+            • Total Warnings: {{ states('counter.system_warnings_today') }}
+            
+            🏥 **Health Score:** {{ states('sensor.system_health_score') }}%
+
+  # Auto restart on critical memory
+  - id: system_critical_memory_restart
+    alias: "System: Critical Memory Auto Restart"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.memory_use_percent
+        above: 95
+        for:
+          minutes: 10
+    condition:
+      - condition: time
+        after: "02:00:00"
+        before: "05:00:00"
+    action:
+      - service: notify.persistent_notification
+        data:
+          title: "🔄 Auto Restart Scheduled"
+          message: "Critical memory usage detected. Restarting Home Assistant..."
+      - delay: "00:00:30"
+      - service: homeassistant.restart
+
+# ==============================================================================
+# SCRIPTS
+# ==============================================================================
+
+script:
+  system_health_check:
+    alias: "System Health Check"
+    sequence:
+      - service: notify.persistent_notification
+        data:
+          title: "🔍 System Health Check"
+          message: >
+            **Current System Status:**
+            
+            CPU: {{ states('sensor.processor_use_percent') }}%
+            Memory: {{ states('sensor.memory_use_percent') }}%
+            Disk: {{ states('sensor.disk_use_percent') }}%
+            Temperature: {{ states('sensor.processor_temperature') }}°C
+            
+            Health Score: {{ states('sensor.system_health_score') }}%
+            
+            {% if states('sensor.system_health_score') | float > 80 %}
+            ✅ System is healthy
+            {% elif states('sensor.system_health_score') | float > 60 %}
+            ⚠️ System needs attention
+            {% else %}
+            ❌ System requires immediate attention
+            {% endif %}
+
+  purge_database:
+    alias: "Purge Database"
+    sequence:
+      - service: recorder.purge
+        data:
+          keep_days: 3
+          repack: true
+      - service: notify.persistent_notification
+        data:
+          title: "Database Purged"
+          message: "Database has been purged and repacked."
