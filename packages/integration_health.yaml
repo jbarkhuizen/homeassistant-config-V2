@@ -1,0 +1,143 @@
+#===============================================================================
+# Integration Health Monitoring Package
+# File: packages/integration_health.yaml
+# Purpose: Monitor and report integration status
+#===============================================================================
+
+template:
+  - sensor:
+      - name: "Integration Health Score"
+        state: >
+          {% set integrations = [
+            'deye_solar',
+            'localtuya',
+            'mqtt',
+            'telegram_bot',
+            'mobile_app'
+          ] %}
+          {% set healthy = namespace(count=0) %}
+          {% set total = integrations | length %}
+          
+          # Check each integration by looking for active entities
+          {% if states('sensor.deyeinvertermaster_battery_soc') not in ['unknown', 'unavailable'] %}
+            {% set healthy.count = healthy.count + 1 %}
+          {% endif %}
+          
+          {% if states('sensor.sonoff_a4800e446e_battery') not in ['unknown', 'unavailable'] %}
+            {% set healthy.count = healthy.count + 1 %}
+          {% endif %}
+          
+          {% if states('sensor.last_boot') not in ['unknown', 'unavailable'] %}
+            {% set healthy.count = healthy.count + 1 %}
+          {% endif %}
+          
+          {% if states('binary_sensor.telegram_bot_connected') == 'on' %}
+            {% set healthy.count = healthy.count + 1 %}
+          {% endif %}
+          
+          {% if states('sensor.sm_g996b_battery_level') not in ['unknown', 'unavailable'] %}
+            {% set healthy.count = healthy.count + 1 %}
+          {% endif %}
+          
+          {{ ((healthy.count / total) * 100) | round(0) }}
+        unit_of_measurement: "%"
+        icon: >
+          {% set score = states('sensor.integration_health_score') | int(0) %}
+          {% if score >= 90 %}
+            mdi:check-circle
+          {% elif score >= 70 %}
+            mdi:alert-circle
+          {% else %}
+            mdi:close-circle
+          {% endif %}
+
+      - name: "Device Connectivity Status"
+        state: >
+          {% set devices = [
+            'sensor.temperature_humidity_sensor_battery',
+            'sensor.temperature_humidity_sensor_battery_2',
+            'sensor.motion_sensor_battery',
+            'sensor.snzb_05p_battery'
+          ] %}
+          {% set online = namespace(count=0) %}
+          {% for device in devices %}
+            {% if states(device) not in ['unknown', 'unavailable'] %}
+              {% set online.count = online.count + 1 %}
+            {% endif %}
+          {% endfor %}
+          {{ online.count }}/{{ devices | length }}
+        icon: mdi:devices
+
+      - name: "Solar System Health"
+        state: >
+          {% set master_online = states('sensor.deyeinvertermaster_battery_soc') not in ['unknown', 'unavailable'] %}
+          {% set slave_online = states('sensor.deyeinverterslave_battery_soc') not in ['unknown', 'unavailable'] %}
+          {% if master_online and slave_online %}
+            excellent
+          {% elif master_online or slave_online %}
+            partial
+          {% else %}
+            offline
+          {% endif %}
+        icon: >
+          {% set health = states('sensor.solar_system_health') %}
+          {% if health == 'excellent' %}
+            mdi:solar-power
+          {% elif health == 'partial' %}
+            mdi:solar-power-variant
+          {% else %}
+            mdi:solar-power-variant-outline
+          {% endif %}
+
+  - binary_sensor:
+      - name: "System Health Critical"
+        state: >
+          {% set integration_health = states('sensor.integration_health_score') | int(0) %}
+          {% set device_connectivity = states('sensor.device_connectivity_status').split('/') %}
+          {% set online_devices = device_connectivity[0] | int(0) %}
+          {% set total_devices = device_connectivity[1] | int(1) %}
+          {% set connectivity_percent = (online_devices / total_devices) * 100 %}
+          
+          {{ integration_health < 70 or connectivity_percent < 75 }}
+        icon: >
+          {% if is_state('binary_sensor.system_health_critical', 'on') %}
+            mdi:alert-circle
+          {% else %}
+            mdi:check-circle
+          {% endif %}
+
+automation:
+  - id: 'integration_health_alert'
+    alias: 'System: Integration Health Alert at 09:00'
+    description: 'Alert when integration health is poor'
+    trigger:
+      - platform: time
+        at: '09:00:00'
+      - platform: state
+        entity_id: binary_sensor.system_health_critical
+        to: 'on'
+        for:
+          minutes: 5
+    condition:
+      - condition: state
+        entity_id: binary_sensor.system_health_critical
+        state: 'on'
+    action:
+      - service: persistent_notification.create
+        data:
+          title: "🚨 System Health Alert"
+          message: >
+            **Integration Health Issues Detected:**
+            
+            📊 Health Score: {{ states('sensor.integration_health_score') }}%
+            🔌 Device Connectivity: {{ states('sensor.device_connectivity_status') }}
+            ⚡ Solar System: {{ states('sensor.solar_system_health') | title }}
+            
+            **Recommended Actions:**
+            1. Check integration status in Settings > Devices & Services
+            2. Verify device connectivity
+            3. Restart problematic integrations
+            4. Check network connectivity
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+          notification_id: "system_health_alert"

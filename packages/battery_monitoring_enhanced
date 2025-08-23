@@ -1,0 +1,249 @@
+#===============================================================================
+# Enhanced Battery Monitoring Package
+# File: packages/battery_monitoring_enhanced.yaml
+# Purpose: Complete battery monitoring with dashboard support
+#===============================================================================
+
+# Template sensors for dashboard
+template:
+  - sensor:
+      - name: "Battery Status Summary"
+        state: >
+          {% set entities = [
+            'sensor.temperature_humidity_sensor_battery',
+            'sensor.temperature_humidity_sensor_battery_2',
+            'sensor.motion_sensor_battery',
+            'sensor.sm_g996b_battery_level'
+          ] %}
+          {% set critical = namespace(count=0) %}
+          {% set low = namespace(count=0) %}
+          {% set warning = namespace(count=0) %}
+          {% set critical_thresh = states('input_number.battery_critical_threshold') | int(15) %}
+          {% set low_thresh = states('input_number.battery_low_threshold') | int(25) %}
+          {% set warning_thresh = states('input_number.battery_warning_threshold') | int(40) %}
+          
+          {% for entity in entities %}
+            {% if states(entity) not in ['unknown', 'unavailable'] %}
+              {% set level = states(entity) | int(100) %}
+              {% if level <= critical_thresh %}
+                {% set critical.count = critical.count + 1 %}
+              {% elif level <= low_thresh %}
+                {% set low.count = low.count + 1 %}
+              {% elif level <= warning_thresh %}
+                {% set warning.count = warning.count + 1 %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+          
+          {% if critical.count > 0 %}
+            critical
+          {% elif low.count > 0 %}
+            low
+          {% elif warning.count > 0 %}
+            warning
+          {% else %}
+            good
+          {% endif %}
+        icon: >
+          {% set status = states('sensor.battery_status_summary') %}
+          {% if status == 'critical' %}
+            mdi:battery-alert
+          {% elif status == 'low' %}
+            mdi:battery-low
+          {% elif status == 'warning' %}
+            mdi:battery-medium
+          {% else %}
+            mdi:battery-check
+          {% endif %}
+
+      - name: "Battery Devices Count"
+        state: >
+          {% set entities = [
+            'sensor.temperature_humidity_sensor_battery',
+            'sensor.temperature_humidity_sensor_battery_2',
+            'sensor.motion_sensor_battery',
+            'sensor.sm_g996b_battery_level'
+          ] %}
+          {% set available = namespace(count=0) %}
+          {% for entity in entities %}
+            {% if states(entity) not in ['unknown', 'unavailable'] %}
+              {% set available.count = available.count + 1 %}
+            {% endif %}
+          {% endfor %}
+          {{ available.count }}
+        unit_of_measurement: "devices"
+        icon: mdi:counter
+
+      - name: "Critical Battery Devices"
+        state: >
+          {% set entities = [
+            'sensor.temperature_humidity_sensor_battery',
+            'sensor.temperature_humidity_sensor_battery_2',
+            'sensor.motion_sensor_battery',
+            'sensor.sm_g996b_battery_level'
+          ] %}
+          {% set critical_thresh = states('input_number.battery_critical_threshold') | int(15) %}
+          {% set critical = namespace(count=0) %}
+          {% for entity in entities %}
+            {% if states(entity) not in ['unknown', 'unavailable'] %}
+              {% set level = states(entity) | int(100) %}
+              {% if level <= critical_thresh %}
+                {% set critical.count = critical.count + 1 %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+          {{ critical.count }}
+        unit_of_measurement: "devices"
+        icon: mdi:battery-alert
+
+      - name: "Low Battery Devices"
+        state: >
+          {% set entities = [
+            'sensor.temperature_humidity_sensor_battery',
+            'sensor.temperature_humidity_sensor_battery_2',
+            'sensor.motion_sensor_battery',
+            'sensor.sm_g996b_battery_level'
+          ] %}
+          {% set low_thresh = states('input_number.battery_low_threshold') | int(25) %}
+          {% set critical_thresh = states('input_number.battery_critical_threshold') | int(15) %}
+          {% set low = namespace(count=0) %}
+          {% for entity in entities %}
+            {% if states(entity) not in ['unknown', 'unavailable'] %}
+              {% set level = states(entity) | int(100) %}
+              {% if critical_thresh < level <= low_thresh %}
+                {% set low.count = low.count + 1 %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+          {{ low.count }}
+        unit_of_measurement: "devices"
+        icon: mdi:battery-low
+
+      # Individual battery level sensors for dashboard
+      - name: "Temperature Sensor 1 Battery"
+        state: "{{ states('sensor.temperature_humidity_sensor_battery') }}"
+        unit_of_measurement: "%"
+        device_class: battery
+        availability: "{{ states('sensor.temperature_humidity_sensor_battery') not in ['unknown', 'unavailable'] }}"
+
+      - name: "Temperature Sensor 2 Battery"
+        state: "{{ states('sensor.temperature_humidity_sensor_battery_2') }}"
+        unit_of_measurement: "%"
+        device_class: battery
+        availability: "{{ states('sensor.temperature_humidity_sensor_battery_2') not in ['unknown', 'unavailable'] }}"
+
+      - name: "Motion Sensor Battery"
+        state: "{{ states('sensor.motion_sensor_battery') }}"
+        unit_of_measurement: "%"
+        device_class: battery
+        availability: "{{ states('sensor.motion_sensor_battery') not in ['unknown', 'unavailable'] }}"
+
+      - name: "Phone Battery"
+        state: "{{ states('sensor.sm_g996b_battery_level') }}"
+        unit_of_measurement: "%"
+        device_class: battery
+        availability: "{{ states('sensor.sm_g996b_battery_level') not in ['unknown', 'unavailable'] }}"
+
+      # Solar battery monitoring
+      - name: "Solar Battery Health"
+        state: >
+          {% set soc = states('sensor.deyeinvertermaster_battery_soc') | float(0) %}
+          {% if soc >= 80 %}
+            excellent
+          {% elif soc >= 60 %}
+            good
+          {% elif soc >= 40 %}
+            fair
+          {% elif soc >= 20 %}
+            low
+          {% else %}
+            critical
+          {% endif %}
+        icon: >
+          {% set health = states('sensor.solar_battery_health') %}
+          {% if health == 'excellent' %}
+            mdi:battery
+          {% elif health == 'good' %}
+            mdi:battery-80
+          {% elif health == 'fair' %}
+            mdi:battery-60
+          {% elif health == 'low' %}
+            mdi:battery-30
+          {% else %}
+            mdi:battery-alert
+          {% endif %}
+
+  - binary_sensor:
+      - name: "Battery Alert Active"
+        state: >
+          {{ states('sensor.battery_status_summary') in ['critical', 'low'] }}
+        icon: >
+          {% if is_state('binary_sensor.battery_alert_active', 'on') %}
+            mdi:bell-alert
+          {% else %}
+            mdi:bell-check
+          {% endif %}
+
+      - name: "All Batteries OK"
+        state: >
+          {{ states('sensor.battery_status_summary') == 'good' }}
+        icon: >
+          {% if is_state('binary_sensor.all_batteries_ok', 'on') %}
+            mdi:check-circle
+          {% else %}
+            mdi:alert-circle
+          {% endif %}
+
+# Group for easy dashboard access
+group:
+  battery_sensors:
+    name: "Battery Sensors"
+    entities:
+      - sensor.temperature_sensor_1_battery
+      - sensor.temperature_sensor_2_battery
+      - sensor.motion_sensor_battery
+      - sensor.phone_battery
+      - sensor.deyeinvertermaster_battery_soc
+
+  battery_controls:
+    name: "Battery Controls"
+    entities:
+      - input_number.battery_critical_threshold
+      - input_number.battery_low_threshold
+      - input_number.battery_warning_threshold
+      - input_boolean.battery_alerts_enabled
+
+  battery_statistics:
+    name: "Battery Statistics"
+    entities:
+      - sensor.battery_status_summary
+      - sensor.battery_devices_count
+      - sensor.critical_battery_devices
+      - sensor.low_battery_devices
+      - counter.battery_alerts_today
+      - counter.total_battery_alerts_sent
+
+# Automation for dashboard updates
+automation:
+  - id: 'battery_dashboard_update'
+    alias: 'Battery: Dashboard Update at 09:00'
+    description: 'Update battery dashboard entities and counters'
+    trigger:
+      - platform: time
+        at: '09:00:00'
+      - platform: state
+        entity_id:
+          - sensor.temperature_humidity_sensor_battery
+          - sensor.temperature_humidity_sensor_battery_2
+          - sensor.motion_sensor_battery
+          - sensor.sm_g996b_battery_level
+        for:
+          minutes: 1
+    action:
+      - service: homeassistant.update_entity
+        target:
+          entity_id:
+            - sensor.battery_status_summary
+            - sensor.battery_devices_count
+            - sensor.critical_battery_devices
+            - sensor.low_battery_devices

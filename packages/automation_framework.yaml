@@ -1,0 +1,103 @@
+#===============================================================================
+# Advanced Automation Framework Package
+# File: packages/automation_framework.yaml
+# Purpose: Enhanced automation management and monitoring
+#===============================================================================
+
+input_boolean:
+  automation_debug_mode:
+    name: "Automation Debug Mode"
+    initial: false
+    icon: mdi:bug
+
+  maintenance_mode:
+    name: "Maintenance Mode"
+    initial: false
+    icon: mdi:wrench
+
+input_select:
+  automation_log_level:
+    name: "Automation Log Level"
+    options:
+      - "error"
+      - "warning"
+      - "info"
+      - "debug"
+    initial: "info"
+    icon: mdi:file-document-outline
+
+template:
+  - sensor:
+      - name: "Failed Automations Count"
+        state: >
+          {% set automations = states.automation %}
+          {% set failed = namespace(count=0) %}
+          {% for automation in automations %}
+            {% if automation.state == 'unavailable' or automation.attributes.get('last_triggered') == None %}
+              {% set failed.count = failed.count + 1 %}
+            {% endif %}
+          {% endfor %}
+          {{ failed.count }}
+        icon: mdi:robot-angry
+
+      - name: "Automations Last Triggered"
+        state: >
+          {% set automations = states.automation %}
+          {% set recent = namespace(count=0) %}
+          {% set now_timestamp = now().timestamp() %}
+          {% for automation in automations %}
+            {% set last_triggered = automation.attributes.get('last_triggered') %}
+            {% if last_triggered %}
+              {% set trigger_timestamp = as_timestamp(last_triggered) %}
+              {% if (now_timestamp - trigger_timestamp) < 86400 %}
+                {% set recent.count = recent.count + 1 %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+          {{ recent.count }}
+        unit_of_measurement: "today"
+        icon: mdi:robot-happy
+
+script:
+  automation_health_check:
+    alias: "Check Automation Health"
+    sequence:
+      - service: persistent_notification.create
+        data:
+          title: "🤖 Automation Health Report"
+          message: >
+            **Automation System Status:**
+            
+            📊 **Overall Health:**
+            • Total Automations: {{ states.automation | list | length }}
+            • Failed/Unavailable: {{ states('sensor.failed_automations_count') }}
+            • Triggered Today: {{ states('sensor.automations_last_triggered') }}
+            
+            **System Modes:**
+            • Debug Mode: {{ 'ON' if is_state('input_boolean.automation_debug_mode', 'on') else 'OFF' }}
+            • Maintenance Mode: {{ 'ON' if is_state('input_boolean.maintenance_mode', 'on') else 'OFF' }}
+            • Log Level: {{ states('input_select.automation_log_level') | upper }}
+            
+            **Recent Issues:**
+            {% if states('sensor.failed_automations_count') | int > 0 %}
+            ⚠️ {{ states('sensor.failed_automations_count') }} automations may have issues
+            {% else %}
+            ✅ All automations appear healthy
+            {% endif %}
+            
+            Report Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+          notification_id: "automation_health_report"
+
+automation:
+  - id: 'automation_health_daily'
+    alias: 'System: Daily Automation Health Check at 09:00'
+    description: 'Daily automation system health monitoring'
+    trigger:
+      - platform: time
+        at: '09:00:00'
+    condition:
+      - condition: state
+        entity_id: input_boolean.maintenance_mode
+        state: 'off'
+    action:
+      - service: script.automation_health_check

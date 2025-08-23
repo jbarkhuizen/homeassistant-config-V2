@@ -1,0 +1,70 @@
+#===============================================================================
+# Simple Notification Package - Minimal Version
+# File: packages/notification_simple.yaml
+# Purpose: Basic notification management without complex features
+#===============================================================================
+
+input_boolean:
+  notification_quiet_mode:
+    name: "Quiet Mode Enabled"
+    initial: true
+    icon: mdi:volume-off
+
+  notification_priority_only:
+    name: "Priority Notifications Only"
+    initial: false
+    icon: mdi:priority-high
+
+input_number:
+  notification_quiet_hours_start:
+    name: "Quiet Hours Start"
+    min: 0
+    max: 23
+    step: 1
+    initial: 22
+    unit_of_measurement: "hour"
+    icon: mdi:sleep
+
+  notification_quiet_hours_end:
+    name: "Quiet Hours End"
+    min: 0
+    max: 23
+    step: 1
+    initial: 7
+    unit_of_measurement: "hour"
+    icon: mdi:sleep-off
+
+template:
+  - binary_sensor:
+      - name: "Quiet Hours Active"
+        state: >
+          {% set current_hour = now().hour %}
+          {% set start_hour = states('input_number.notification_quiet_hours_start') | int %}
+          {% set end_hour = states('input_number.notification_quiet_hours_end') | int %}
+          {% if start_hour > end_hour %}
+            {{ current_hour >= start_hour or current_hour < end_hour }}
+          {% else %}
+            {{ start_hour <= current_hour < end_hour }}
+          {% endif %}
+        icon: mdi:sleep
+
+automation:
+  - id: 'notification_morning_summary_simple'
+    alias: 'Notifications: Simple Morning Summary at 09:00'
+    description: 'Send basic morning summary'
+    trigger:
+      - platform: time
+        at: '09:00:00'
+    condition:
+      - condition: state
+        entity_id: input_boolean.notification_quiet_mode
+        state: 'on'
+    action:
+      - service: persistent_notification.create
+        data:
+          title: "🌅 Morning Summary"
+          message: >
+            Good morning! System status:
+            Battery SOC: {{ states('sensor.deyeinvertermaster_battery_soc') }}%
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+          notification_id: "morning_summary"
