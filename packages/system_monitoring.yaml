@@ -6,60 +6,15 @@
 # ==============================================================================
 
 sensor:
-  # System Monitor Platform
-  - platform: systemmonitor
-    resources:
-      - type: processor_use
-      - type: processor_temperature
-      - type: memory_use_percent
-      - type: memory_use
-      - type: memory_free
-      - type: memory_available
-      - type: swap_use_percent
-      - type: swap_use
-      - type: swap_free
-      - type: disk_use_percent
-        arg: /
-      - type: disk_use
-        arg: /
-      - type: disk_free
-        arg: /
-      - type: network_in
-        arg: eth0
-      - type: network_out
-        arg: eth0
-      - type: throughput_network_in
-        arg: eth0
-      - type: throughput_network_out
-        arg: eth0
-      - type: packets_in
-        arg: eth0
-      - type: packets_out
-        arg: eth0
-      - type: ipv4_address
-        arg: eth0
-      - type: load_1m
-      - type: load_5m
-      - type: load_15m
-      - type: last_boot
-
-  # Uptime sensor
-  - platform: uptime
-    name: Uptime
-    unit_of_measurement: hours
-
-  # Version sensors
-  - platform: version
-    name: Current Version
-    source: local
-
-  - platform: version
-    name: Latest Version
-    source: docker
-
+#********************************************************************************
+#The below code give an error, commented out
+#  - platform: version
+#    name: Latest Version
+#    source: docker
+#*******************************************************************************
   # Database size sensor
   - platform: sql
-    db_url: !secret recorder_db_url
+#    db_url: !secret recorder_db_url
     queries:
       - name: Home Assistant Database Size
         query: 'SELECT ROUND(page_count * page_size / 1024.0 / 1024.0, 2) as size FROM pragma_page_count(), pragma_page_size();'
@@ -81,10 +36,11 @@ sensor:
     scan_interval: 300
 
   # File size sensors
-  - platform: filesize
-    file_paths:
-      - /config/home-assistant_v2.db
-      - /config/home-assistant.log
+# The Code below create an error  
+#  - platform: filesize
+#    file_paths:
+#      - /config/home-assistant_v2.db
+#      - /config/home-assistant.log
 
   # Template sensors for calculated values
   - platform: template

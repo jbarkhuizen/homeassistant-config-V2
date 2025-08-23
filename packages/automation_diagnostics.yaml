@@ -1,0 +1,222 @@
+#===============================================================================
+# Enhanced Automation Diagnostics Package - FIXED
+# File: packages/automation_diagnostics.yaml
+# Purpose: Detailed automation failure analysis
+# Updated: 2025-08-23 09:00 - Fixed template parsing errors
+#===============================================================================
+
+script:
+  automation_detailed_diagnostics:
+    alias: "Detailed Automation Diagnostics"
+    sequence:
+      - service: notify.telegram
+        data:
+          title: "🔍 Detailed Automation Analysis"
+          message: >
+            **FAILED AUTOMATIONS LIST:**
+            {% set failed_list = states.automation | selectattr('state', 'eq', 'unavailable') | list %}
+            {% if failed_list | length > 0 %}
+            {% for automation in failed_list %}
+            • {{ automation.attributes.friendly_name }}
+              ID: {{ automation.entity_id }}
+              Last triggered: {{ automation.attributes.last_triggered | default('Never') }}
+            {% endfor %}
+            {% else %}
+            ✅ No automations showing as unavailable
+            {% endif %}
+            
+            **ENTITY DEPENDENCY ANALYSIS:**
+            {% set deye_entities = states | selectattr('entity_id', 'match', '.*deye.*') | selectattr('state', 'eq', 'unavailable') | map(attribute='entity_id') | list %}
+            {% set tuya_entities = states | selectattr('entity_id', 'match', '.*tuya.*') | selectattr('state', 'eq', 'unavailable') | map(attribute='entity_id') | list %}
+            {% set sunsynk_entities = states | selectattr('entity_id', 'match', '.*sunsynk.*') | selectattr('state', 'eq', 'unavailable') | map(attribute='entity_id') | list %}
+            
+            **Deye Integration Issues:** {{ deye_entities | length }}
+            {% for entity in deye_entities[:5] %}
+            • {{ entity }}
+            {% endfor %}
+            
+            **Tuya Integration Issues:** {{ tuya_entities | length }}  
+            {% for entity in tuya_entities[:5] %}
+            • {{ entity }}
+            {% endfor %}
+            
+            **Sunsynk Integration Issues:** {{ sunsynk_entities | length }}
+            {% for entity in sunsynk_entities[:5] %}
+            • {{ entity }}
+            {% endfor %}
+            
+            Report Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+
+  integration_status_check:
+    alias: "Integration Status Check"
+    sequence:
+      - service: notify.telegram
+        data:
+          title: "🔌 Integration Health Status"
+          message: >
+            **INTEGRATION CONNECTIVITY TEST:**
+            
+            **LocalTuya Integration:**
+            {% set localtuya_devices = integration_entities('localtuya') | list %}
+            • Total devices: {{ localtuya_devices | length }}
+            • Available: {{ localtuya_devices | select('is_state', 'on') | list | length + localtuya_devices | select('is_state', 'off') | list | length }}
+            • Status: {{ 'OK' if localtuya_devices | length > 0 else 'FAILED - No devices found' }}
+            
+            **Deye Solar Integration:**
+            {% set deye_sensors = states.sensor | selectattr('entity_id', 'match', '.*deye.*') | list %}
+            • Total sensors: {{ deye_sensors | length }}
+            • Available: {{ deye_sensors | rejectattr('state', 'eq', 'unavailable') | list | length }}
+            • Status: {{ 'OK' if deye_sensors | rejectattr('state', 'eq', 'unavailable') | list | length > 0 else 'FAILED - All sensors unavailable' }}
+            
+            **Network Connectivity:**
+            • Last restart: {{ states('sensor.uptime') | default('Unknown') }}
+            • System health: {{ 'OK' if states('binary_sensor.rpi_power_status') == 'on' else 'CHECK POWER' }}
+            
+            **Critical Entities Status:**
+            • Prepaid meter: {{ states('input_number.prepaid_meter_units') }}
+            • Grid import: {{ states('sensor.deyeinvertermaster_summary_total_grid_import_buy') }}
+            • Units left: {{ states('sensor.prepaid_units_left') }}
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+
+automation:
+  - id: 'diagnostic_automation_health'
+    alias: 'System: Run Diagnostics at 09:00'
+    description: 'Enhanced automation diagnostics'
+    trigger:
+      - platform: time
+        at: '09:00:00'
+    action:
+      - service: script.automation_detailed_diagnostics
+      - delay: '00:00:30'
+      - service: script.integration_status_check
+    mode: single
+
+  # FIXED: Template parsing error in this automation
+  - id: 'automation_failure_immediate_alert'
+    alias: 'System: Immediate Automation Failure Alert'
+    description: 'Alert immediately when automation fails'
+    trigger:
+      - platform: event
+        event_type: automation_triggered
+      - platform: state
+        entity_id: sensor.failed_automations_count
+        not_from: 'unknown'
+    condition:
+      - condition: numeric_state
+        entity_id: sensor.failed_automations_count
+        above: 20  # Alert when more than 20 failed
+    action:
+      - service: notify.telegram
+        data:
+          title: "🚨 CRITICAL: High Automation Failure"
+          # FIXED: Properly formatted multiline string template
+          message: |
+            **IMMEDIATE ATTENTION REQUIRED**
+            
+            Failed automations: {{ states('sensor.failed_automations_count') }}
+            Failure rate: {{ ((states('sensor.failed_automations_count') | int / states.automation | list | length) * 100) | round(1) }}%
+            
+            **LIKELY CAUSES:**
+            • Integration disconnection
+            • Network connectivity issues  
+            • Entity dependency failures
+            • Configuration errors
+            
+            **IMMEDIATE ACTIONS:**
+            1. Check Settings > Devices & Services
+            2. Restart problematic integrations
+            3. Review Home Assistant logs
+            4. Verify network connectivity
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+    mode: single
+
+  # Additional automation for better monitoring
+  - id: 'automation_health_summary'
+    alias: 'System: Automation Health Summary at 09:00'
+    description: 'Daily automation health summary with safe templates'
+    trigger:
+      - platform: time
+        at: '09:00:00'
+    action:
+      - service: notify.telegram
+        data:
+          title: "📊 Automation Health Summary"
+          message: |
+            **DAILY AUTOMATION REPORT**
+            
+            📈 **Statistics:**
+            • Total automations: {{ states.automation | list | length }}
+            • Failed/Unavailable: {{ states('sensor.failed_automations_count') | default('0') }}
+            • Success rate: {{ (100 - ((states('sensor.failed_automations_count') | int(0) / states.automation | list | length) * 100)) | round(1) }}%
+            
+            🔧 **System Health:**
+            {% if states('sensor.failed_automations_count') | int(0) == 0 %}
+            ✅ All automations running perfectly!
+            {% elif states('sensor.failed_automations_count') | int(0) < 5 %}
+            ✅ Excellent - minimal issues ({{ states('sensor.failed_automations_count') }})
+            {% elif states('sensor.failed_automations_count') | int(0) < 15 %}
+            ⚠️ Good - some issues to monitor ({{ states('sensor.failed_automations_count') }})
+            {% else %}
+            ❌ Critical - immediate attention required ({{ states('sensor.failed_automations_count') }})
+            {% endif %}
+            
+            **Next Actions:**
+            {% if states('sensor.failed_automations_count') | int(0) > 10 %}
+            1. Run detailed diagnostics
+            2. Check integration status
+            3. Review system logs
+            {% else %}
+            System monitoring continues normally
+            {% endif %}
+            
+            Report Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+    mode: single
+
+  # Safe entity monitoring automation
+  - id: 'safe_entity_monitoring'
+    alias: 'System: Safe Entity Status Check at 09:00'
+    description: 'Monitor critical entities with safe template handling'
+    trigger:
+      - platform: time
+        at: '09:00:00'
+    action:
+      - service: notify.telegram
+        data:
+          title: "🔍 Critical Entity Status"
+          message: |
+            **ENTITY AVAILABILITY CHECK**
+            
+            **Core Power Entities:**
+            • Deye Grid Import: {{ states('sensor.deyeinvertermaster_summary_total_grid_import_buy') | default('N/A') }}
+            • Prepaid Meter Units: {{ states('input_number.prepaid_meter_units') | default('N/A') }}
+            • Units Remaining: {{ states('sensor.prepaid_units_left') | default('N/A') }}
+            • Export Mode: {{ states('switch.grid_export_mode') | default('N/A') }}
+            
+            **Health Indicators:**
+            {% set critical_entities = [
+              'sensor.deyeinvertermaster_summary_total_grid_import_buy',
+              'input_number.prepaid_meter_units',
+              'sensor.prepaid_units_left',
+              'switch.grid_export_mode'
+            ] %}
+            {% set available_count = 0 %}
+            {% for entity in critical_entities %}
+              {% if states(entity) not in ['unavailable', 'unknown'] %}
+                {% set available_count = available_count + 1 %}
+              {% endif %}
+            {% endfor %}
+            
+            • Available entities: {{ available_count }}/{{ critical_entities | length }}
+            • Health score: {{ (available_count / critical_entities | length * 100) | round(1) }}%
+            
+            {% if available_count < critical_entities | length %}
+            **ATTENTION REQUIRED:**
+            Unavailable entities detected - check integrations
+            {% else %}
+            **STATUS:** All critical entities are healthy ✅
+            {% endif %}
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+    mode: single

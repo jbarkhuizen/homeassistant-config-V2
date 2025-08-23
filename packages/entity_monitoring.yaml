@@ -1,0 +1,289 @@
+#===============================================================================
+# Entity Availability Monitoring Package - FIXED
+# File: packages/entity_monitoring.yaml
+# Purpose: Monitor critical entity availability and integration health
+# Updated: 2025-08-23 09:00 - Fixed binary_sensor platform issue
+#===============================================================================
+
+template:
+  - sensor:
+      - name: "Critical Entity Availability Score"
+        state: >
+          {% set critical_entities = [
+            'sensor.deyeinvertermaster_summary_total_grid_import_buy',
+            'input_number.prepaid_meter_units',
+            'input_number.prepaid_meter_inverter_total_units',
+            'sensor.prepaid_units_left',
+            'switch.grid_export_mode'
+          ] %}
+          {% set available = namespace(count=0) %}
+          {% for entity in critical_entities %}
+            {% if states(entity) not in ['unavailable', 'unknown'] %}
+              {% set available.count = available.count + 1 %}
+            {% endif %}
+          {% endfor %}
+          {{ (available.count / critical_entities | length * 100) | round(1) }}
+        unit_of_measurement: "%"
+        icon: mdi:check-network
+        attributes:
+          critical_entities_status: >
+            {% set critical_entities = [
+              'sensor.deyeinvertermaster_summary_total_grid_import_buy',
+              'input_number.prepaid_meter_units', 
+              'input_number.prepaid_meter_inverter_total_units',
+              'sensor.prepaid_units_left',
+              'switch.grid_export_mode'
+            ] %}
+            {% set status = {} %}
+            {% for entity in critical_entities %}
+              {% set status = dict(status, **{entity: states(entity)}) %}
+            {% endfor %}
+            {{ status }}
+
+      - name: "Integration Health Score"
+        state: >
+          {% set integrations = ['localtuya', 'deye_solar'] %}
+          {% set healthy = namespace(count=0) %}
+          {% for integration in integrations %}
+            {% set entities = integration_entities(integration) %}
+            {% if entities | length > 0 %}
+              {% set available_entities = entities | select('is_state', 'on') | list | length + entities | select('is_state', 'off') | list | length + entities | reject('is_state', 'unavailable') | reject('is_state', 'unknown') | list | length %}
+              {% if available_entities > (entities | length * 0.5) %}
+                {% set healthy.count = healthy.count + 1 %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+          {{ (healthy.count / integrations | length * 100) | round(1) }}
+        unit_of_measurement: "%"
+        icon: mdi:puzzle
+        attributes:
+          integration_status: >
+            {% set integrations = ['localtuya', 'deye_solar'] %}
+            {% set status = {} %}
+            {% for integration in integrations %}
+              {% set entities = integration_entities(integration) %}
+              {% if entities | length > 0 %}
+                {% set available = entities | reject('is_state', 'unavailable') | reject('is_state', 'unknown') | list | length %}
+                {% set total = entities | length %}
+                {% set health = (available / total * 100) | round(1) %}
+                {% set status = dict(status, **{integration: {'total': total, 'available': available, 'health': health}}) %}
+              {% else %}
+                {% set status = dict(status, **{integration: 'not_found'}) %}
+              {% endif %}
+            {% endfor %}
+            {{ status }}
+
+      - name: "Automation Recovery Recommendations"
+        state: >
+          {% set failed_count = states('sensor.failed_automations_count') | int(0) %}
+          {% set entity_score = states('sensor.critical_entity_availability_score') | float(0) %}
+          {% set integration_score = states('sensor.integration_health_score') | float(0) %}
+          
+          {% if failed_count < 5 and entity_score > 90 and integration_score > 80 %}
+          excellent
+          {% elif failed_count < 15 and entity_score > 70 and integration_score > 60 %}
+          good
+          {% elif failed_count < 25 and entity_score > 50 and integration_score > 40 %}
+          degraded
+          {% else %}
+          critical
+          {% endif %}
+        icon: mdi:wrench
+        attributes:
+          recommendations: >
+            {% set failed_count = states('sensor.failed_automations_count') | int(0) %}
+            {% set entity_score = states('sensor.critical_entity_availability_score') | float(0) %}
+            {% set integration_score = states('sensor.integration_health_score') | float(0) %}
+            {% set recommendations = [] %}
+            
+            {% if failed_count > 20 %}
+              {% set recommendations = recommendations + ['Restart Home Assistant completely'] %}
+              {% set recommendations = recommendations + ['Check system logs for critical errors'] %}
+            {% endif %}
+            
+            {% if entity_score < 70 %}
+              {% set recommendations = recommendations + ['Check device connectivity (WiFi/Network)'] %}
+              {% set recommendations = recommendations + ['Verify entity names have not changed'] %}
+            {% endif %}
+            
+            {% if integration_score < 60 %}
+              {% set recommendations = recommendations + ['Reload integrations via Settings > Devices & Services'] %}
+              {% set recommendations = recommendations + ['Check integration configuration'] %}
+            {% endif %}
+            
+            {% if failed_count < 5 %}
+              {% set recommendations = recommendations + ['System running optimally'] %}
+            {% endif %}
+            
+            {{ recommendations }}
+
+  # FIXED: Added template platform for binary_sensor
+  - binary_sensor:
+      - name: "System Health Critical"
+        state: >
+          {{ states('sensor.failed_automations_count') | int(0) > 25 or 
+             states('sensor.critical_entity_availability_score') | float(0) < 50 or
+             states('sensor.integration_health_score') | float(0) < 40 }}
+        icon: mdi:heart-pulse
+        attributes:
+          health_factors: >
+            {
+              "failed_automations": {{ states('sensor.failed_automations_count') | int(0) }},
+              "entity_availability": {{ states('sensor.critical_entity_availability_score') | float(0) }},
+              "integration_health": {{ states('sensor.integration_health_score') | float(0) }}
+            }
+
+automation:
+  - id: 'entity_availability_monitor'
+    alias: 'System: Entity Availability Monitor at 09:00'
+    description: 'Monitor critical entity availability and send detailed reports'
+    trigger:
+      - platform: time
+        at: '09:00:00'
+      - platform: numeric_state
+        entity_id: sensor.critical_entity_availability_score
+        below: 80
+    action:
+      - service: notify.telegram
+        data:
+          title: "📊 Entity Availability Report"
+          message: >
+            **SYSTEM HEALTH DASHBOARD - {{ now().strftime('%Y-%m-%d %H:%M') }}**
+            
+            📈 **Health Scores:**
+            • Entity Availability: {{ states('sensor.critical_entity_availability_score') }}%
+            • Integration Health: {{ states('sensor.integration_health_score') }}%
+            • System Status: {{ states('sensor.automation_recovery_recommendations').upper() }}
+            
+            {% if states('sensor.critical_entity_availability_score') | float < 80 %}
+            ⚠️ **Critical Entity Issues:**
+            {% set entity_status = state_attr('sensor.critical_entity_availability_score', 'critical_entities_status') %}
+            {% for entity, status in entity_status.items() %}
+            {% if status in ['unavailable', 'unknown'] %}
+            • {{ entity }}: {{ status.upper() }}
+            {% endif %}
+            {% endfor %}
+            {% endif %}
+            
+            {% if states('sensor.integration_health_score') | float < 80 %}
+            🔌 **Integration Issues:**
+            {% set int_status = state_attr('sensor.integration_health_score', 'integration_status') %}
+            {% for integration, status in int_status.items() %}
+            {% if status != 'not_found' and status.health < 80 %}
+            • {{ integration }}: {{ status.available }}/{{ status.total }} entities ({{ status.health }}%)
+            {% endif %}
+            {% endfor %}
+            {% endif %}
+            
+            🔧 **Recommended Actions:**
+            {% for recommendation in state_attr('sensor.automation_recovery_recommendations', 'recommendations') %}
+            {{ loop.index }}. {{ recommendation }}
+            {% endfor %}
+            
+            **Quick Commands:**
+            • Check logs: Settings > System > Logs
+            • Restart HA: ha core restart
+            • Config check: ha core check
+    mode: single
+
+  - id: 'integration_health_monitor'  
+    alias: 'System: Integration Health Monitor at 09:00'
+    description: 'Detailed integration health monitoring'
+    trigger:
+      - platform: time
+        at: '09:00:00'
+      - platform: numeric_state
+        entity_id: sensor.integration_health_score
+        below: 60
+    action:
+      - service: notify.telegram
+        data:
+          title: "🔌 Integration Health Analysis"
+          message: >
+            **INTEGRATION HEALTH REPORT**
+            
+            **Overall Score:** {{ states('sensor.integration_health_score') }}%
+            
+            {% set int_status = state_attr('sensor.integration_health_score', 'integration_status') %}
+            **Detailed Status:**
+            {% for integration, status in int_status.items() %}
+            {% if status == 'not_found' %}
+            • {{ integration.upper() }}: ❌ NOT FOUND - Check installation
+            {% else %}
+            • {{ integration.upper() }}: {{ status.available }}/{{ status.total }} entities
+              {% if status.health < 50 %}
+              ❌ CRITICAL ({{ status.health }}%) - Requires immediate attention
+              {% elif status.health < 80 %}
+              ⚠️ DEGRADED ({{ status.health }}%) - Needs monitoring
+              {% else %}
+              ✅ HEALTHY ({{ status.health }}%)
+              {% endif %}
+            {% endif %}
+            {% endfor %}
+            
+            **Troubleshooting Steps:**
+            {% if states('sensor.integration_health_score') | float < 40 %}
+            🚨 **CRITICAL - Immediate Action Required:**
+            1. Restart Home Assistant: ha core restart
+            2. Check network connectivity to devices
+            3. Review integration logs for errors
+            4. Consider reloading all integrations
+            {% elif states('sensor.integration_health_score') | float < 60 %}
+            ⚠️ **DEGRADED - Action Recommended:**
+            1. Go to Settings > Devices & Services
+            2. Look for integrations with warning icons
+            3. Click "Reload" for problematic integrations
+            4. Check device power and connectivity
+            {% else %}
+            ✅ **HEALTHY - Monitoring Only:**
+            All integrations performing within normal parameters
+            {% endif %}
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+    mode: single
+
+  - id: 'system_health_critical_alert'
+    alias: 'System: Critical Health Alert'
+    description: 'Emergency alert for critical system health issues'
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.system_health_critical
+        to: 'on'
+        for: '00:05:00'  # Alert after 5 minutes of critical state
+    action:
+      - service: notify.telegram
+        data:
+          title: "🚨 CRITICAL SYSTEM HEALTH ALERT"
+          message: >
+            **EMERGENCY: Critical system health detected!**
+            
+            **Health Status:**
+            {{ state_attr('binary_sensor.system_health_critical', 'health_factors') }}
+            
+            **Failed Automations:** {{ states('sensor.failed_automations_count') }}/{{ states.automation | list | length }}
+            **Entity Availability:** {{ states('sensor.critical_entity_availability_score') }}%
+            **Integration Health:** {{ states('sensor.integration_health_score') }}%
+            
+            **IMMEDIATE ACTIONS REQUIRED:**
+            1. 🔄 Restart Home Assistant: ha core restart
+            2. 🔍 Check system logs for critical errors
+            3. 🌐 Verify network connectivity to all devices
+            4. 🔧 Review integration status and reload if needed
+            5. 📞 Consider manual device checks
+            
+            **This is an automated emergency alert - Action required within 30 minutes**
+            
+            Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+      - service: persistent_notification.create
+        data:
+          title: "🚨 CRITICAL SYSTEM HEALTH"
+          message: >
+            Critical system health detected!
+            
+            Failed Automations: {{ states('sensor.failed_automations_count') }}
+            Entity Availability: {{ states('sensor.critical_entity_availability_score') }}%
+            Integration Health: {{ states('sensor.integration_health_score') }}%
+            
+            IMMEDIATE ACTION REQUIRED - See Telegram for details
+          notification_id: "critical_health_alert"
+    mode: single
