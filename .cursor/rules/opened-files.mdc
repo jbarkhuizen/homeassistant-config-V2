@@ -1,0 +1,831 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Opened Files
+## File Name
+packages/sensors.yaml
+## File Content
+#===============================================================================
+# The sensor below keeps the minimum soc of the battery for the last 12 hours,
+#conly removed from DeyeSolarDesktop, not important
+#===============================================================================
+ sensor:
+   - platform: statistics
+     name: "min_soc_battery"
+     entity_id: sensor.deyeinverter_battery_soc
+     state_characteristic: value_min
+     max_age:
+       hours: 12
+     sampling_size: 144
+# Opened Files
+## File Name
+packages/integration_sensors.yaml
+## File Content
+#===============================================================================
+# Integration Sensors Package
+# File: packages/integration_sensors.yaml
+# Created: 2025-08-22
+# Purpose: Move integration sensors from configuration.yaml to packages
+#===============================================================================
+
+# Integration Sensors (moved from configuration.yaml)
+sensor:
+#===============================================================================  
+  # Sunsynk Sensors added https://github.com/tomatensaus/DeyeSolarDesktop/blob/main/configuration.yaml
+#===============================================================================
+  - platform: integration
+    name: deyeinvertermaster_summary_total_battery_charge_grid
+    source: sensor.deyeinvertermaster_battery_charge_grid_power
+    method: left
+# Below 2 lines id not part of the original Sunsynk Data    
+#    unit_prefix: k
+#    round: 2
+
+  - platform: integration
+    name: deyeinverterslave_summary_total_battery_charge_grid
+    source: sensor.deyeinverterslave_battery_charge_grid_power
+    method: left
+# Below 3 lines id not part of the original Sunsynk Data    
+#    unit_prefix: k
+#    round: 2
+    #***************************************************************************
+
+  # Additional integration sensors for better tracking
+  - platform: integration
+    name: deyeinvertermaster_summary_total_pv_generation
+    source: sensor.deyeinvertermaster_pv_power
+    method: left
+    unit_prefix: k
+    round: 2
+
+  - platform: integration
+    name: deyeinverterslave_summary_total_pv_generation
+    source: sensor.deyeinverterslave_pv_power
+    method: left
+    unit_prefix: k
+    round: 2
+
+  - platform: integration
+    name: deyeinvertermaster_summary_total_grid_export
+    source: sensor.deyeinvertermaster_grid_export_power
+    method: left
+    unit_prefix: k
+    round: 2
+
+  - platform: integration
+    name: deyeinverterslave_summary_total_grid_export
+    source: sensor.deyeinverterslave_grid_export_power
+    method: left
+    unit_prefix: k
+    round: 2
+#===============================================================================  
+  # Sunsynk Utility Meters added https://github.com/tomatensaus/DeyeSolarDesktop/blob/main/configuration.yaml
+#===============================================================================
+# Utility Meters (moved from configuration.yaml)
+utility_meter:
+  # Additional utility meters for comprehensive tracking
+  master_energy_pv_generation:
+    name: deyeinvertermaster_summary_day_pv_generation
+    source: sensor.deyeinvertermaster_summary_total_pv_generation
+    cycle: daily
+
+  slave_energy_pv_generation:
+    name: deyeinverterslave_summary_day_pv_generation
+    source: sensor.deyeinverterslave_summary_total_pv_generation
+    cycle: daily
+
+  master_energy_grid_export:
+    name: deyeinvertermaster_summary_day_grid_export
+    source: sensor.deyeinvertermaster_summary_total_grid_export
+    cycle: daily
+
+  slave_energy_grid_export:
+    name: deyeinverterslave_summary_day_grid_export
+    source: sensor.deyeinverterslave_summary_total_grid_export
+    cycle: daily
+
+# Template sensors for combined values
+template:
+  - sensor:
+      - name: "Combined Solar Power"
+        unit_of_measurement: "W"
+        state: >
+          {{ (states('sensor.deyeinvertermaster_pv_power') | float(0) +
+              states('sensor.deyeinverterslave_pv_power') | float(0)) | round(0) }}
+        device_class: power
+        icon: mdi:solar-power
+
+      - name: "Combined Battery SOC"
+        unit_of_measurement: "%"
+        state: >
+          {% set master_soc = states('sensor.deyeinvertermaster_battery_soc') | float(0) %}
+          {% set slave_soc = states('sensor.deyeinverterslave_battery_soc') | float(0) %}
+          {{ ((master_soc + slave_soc) / 2) | round(1) }}
+        device_class: battery
+        icon: mdi:battery
+
+      - name: "Total Grid Import"
+        unit_of_measurement: "W"
+        state: >
+          {{ (states('sensor.deyeinvertermaster_grid_import_power') | float(0) +
+              states('sensor.deyeinverterslave_grid_import_power') | float(0)) | round(0) }}
+        device_class: power
+        icon: mdi:transmission-tower-import
+
+      - name: "Total Grid Export"
+        unit_of_measurement: "W"
+        state: >
+          {{ (states('sensor.deyeinvertermaster_grid_export_power') | float(0) +
+              states('sensor.deyeinverterslave_grid_export_power') | float(0)) | round(0) }}
+        device_class: power
+        icon: mdi:transmission-tower-export
+
+      - name: "Daily Solar Generation Combined"
+        unit_of_measurement: "kWh"
+        state: >
+          {{ (states('sensor.deyeinvertermaster_summary_day_pv_generation') | float(0) +
+              states('sensor.deyeinverterslave_summary_day_pv_generation') | float(0)) | round(2) }}
+        device_class: energy
+        icon: mdi:solar-power-variant
+
+      - name: "Energy Independence Percentage"
+        unit_of_measurement: "%"
+        state: >
+          {% set solar = states('sensor.combined_solar_power') | float(0) %}
+          {% set grid = states('sensor.total_grid_import') | float(0) %}
+          {% set total = solar + grid %}
+          {% if total > 0 %}
+            {{ ((solar / total) * 100) | round(1) }}
+          {% else %}
+            0
+          {% endif %}
+        icon: mdi:leaf
+
+      # Battery efficiency calculations
+      - name: "Battery Efficiency Master"
+        unit_of_measurement: "%"
+        state: >
+          {% set charge = states('sensor.deyeinvertermaster_battery_charge_power') | float(0) %}
+          {% set discharge = states('sensor.deyeinvertermaster_battery_discharge_power') | float(0) %}
+          {% if charge > 0 %}
+            {{ ((discharge / charge) * 100) | round(1) }}
+          {% else %}
+            0
+          {% endif %}
+        icon: mdi:battery-charging
+
+      - name: "Battery Efficiency Slave"
+        unit_of_measurement: "%"
+        state: >
+          {% set charge = states('sensor.deyeinverterslave_battery_charge_power') | float(0) %}
+          {% set discharge = states('sensor.deyeinverterslave_battery_discharge_power') | float(0) %}
+          {% if charge > 0 %}
+            {{ ((discharge / charge) * 100) | round(1) }}
+          {% else %}
+            0
+          {% endif %}
+        icon: mdi:battery-charging
+
+# Record these entities in InfluxDB
+recorder:
+  include:
+    entities:
+      - sensor.deyeinvertermaster_summary_total_battery_charge_grid
+      - sensor.deyeinverterslave_summary_total_battery_charge_grid
+      - sensor.deyeinvertermaster_summary_total_pv_generation
+      - sensor.deyeinverterslave_summary_total_pv_generation
+      - sensor.deyeinvertermaster_summary_total_grid_export
+      - sensor.deyeinverterslave_summary_total_grid_export
+      - sensor.combined_solar_power
+      - sensor.combined_battery_soc
+      - sensor.total_grid_import
+      - sensor.total_grid_export
+      - sensor.daily_solar_generation_combined
+      - sensor.energy_independence_percentage
+      - sensor.battery_efficiency_master
+      - sensor.battery_efficiency_slave
+# Opened Files
+## File Name
+packages/smartdeyedongle.yaml
+## File Content
+
+template:
+  - sensor:
+      #This entity allows the dongle to set the current time of Home Assistant to the inverter
+      - name: "deyeinvertermaster_ha_time"
+        state: |
+          {{ now().strftime('%y%m%d%H%M') }}
+#-------------------------------------------------------------------------------           
+      - name: "deyeinvertermaster_solar_power_used"
+        state: "{{ (states('sensor.deyeinvertermaster_summary_day_pv') | float(1) - states('sensor.deyeinvertermaster_solar_power_battery_charge') | float(1)) |round(1) }}"
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+
+      - name: "deyeinvertermaster_solar_power_battery_charge"
+        state: "{{ ( states('sensor.deyeinvertermaster_summary_day_battery_charge') | float(1) - states('sensor.deyeinvertermaster_summary_day_battery_charge_grid') | float(1)) | round(1) }}"
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+
+      #essential = inverter_power_175 + grid_power_169  - aux_power_166
+      - name: "deyeinvertermaster_essential_load"
+        state: "{{ (states('sensor.deyeinvertermaster_inverter_output_power') |float(0)  + (states('sensor.deyeinvertermaster_grid_load_l1') |float(0) - states('sensor.deyeinvertermaster_aux_output_power') |float(0) )) | round(0)}}"
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+
+      #nonessential = grid_ct_power_172 - grid_power_167 (L1)
+      - name: "deyeinvertermaster_non_essential_load"
+        state: "{{ (states('sensor.deyeinvertermaster_grid_power_ct_clamp') |float(0)  - (states('sensor.deyeinvertermaster_grid_load_l1') |float(0))) | round(0)}}"
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+
+      - name: "deyeinvertermaster_priority_charge_or_load"
+        state: |
+          {% if is_state('select.deyeinvertermaster_energy_management_model', 'Battery Priority Mode') %}
+            off
+          {% else %}
+            on
+          {% endif %}
+
+      - name: deyeinvertermaster_battery_charge_grid_power
+        unit_of_measurement: "kW"
+        state_class: measurement
+        device_class: power
+        state: >-
+          {% if states('sensor.deyeinvertermaster_inverter_output_power')|float < 0.0 %}
+          {{ (states('sensor.deyeinvertermaster_battery_output_power') | float(4) | abs ) * 0.001  }}
+          {% else %}
+          0.0
+          {% endif %}
+
+####################Slave
+
+      - name: "deyeinverterslave_solar_power_used"
+        state: "{{ (states('sensor.deyeinverterslave_summary_day_pv') | float(0) - states('sensor.deyeinverterslave_summary_day_battery_charge') | float(0)) |round(1) }}"
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+
+    #essential = deyeinverterslave_power_175 + grid_power_169  - aux_power_166
+      - name: "deyeinverterslave_essential_load"
+        state: "{{ (states('sensor.deyeinverterslave_deyeinverterslave_output_power') |float(0)  + (states('sensor.deyeinverterslave_grid_load') |float(0) - states('sensor.deyeinverterslave_aux_output_power') |float(0) )) | round(0)}}"
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+
+      #nonessential = grid_ct_power_172 - grid_power_167 (L1)
+      - name: "deyeinverterslave_non_essential_load"
+        state: "{{ (states('sensor.deyeinverterslave_grid_power_ct_clamp') |float(0)  - (states('sensor.deyeinverterslave_grid_load') |float(0))) | round(0)}}"
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+
+      - name: "deyeinverterslave_priority_charge_or_load"
+        state: |
+          {% if is_state('select.deyeinverterslave_energy_management_model', 'Battery Priority Mode') %}
+            off
+          {% else %}
+            on
+          {% endif %}
+
+      - name: deyeinverterslave_battery_charge_grid_power
+        unit_of_measurement: "kW"
+        state_class: measurement
+        device_class: power
+        state: >-
+          {% if states('sensor.deyeinverterslave_inverter_output_power')|float < 0.0 %}
+          {{ (states('sensor.deyeinverterslave_battery_output_power') | float(4) | abs ) * 0.001  }}
+          {% else %}
+          0.0
+          {% endif %}
+
+      #Combined entities for the summary view with Master/Slave inverters
+      - name: "deyeinvertercombined_battery_soc"
+        state: |-
+          {% if (has_value('sensor.deyeinvertermaster_battery_soc') and has_value('sensor.deyeinverterslave_battery_soc')) %}
+          {{  (states('sensor.deyeinvertermaster_battery_soc') |float(1)  + (states('sensor.deyeinverterslave_battery_soc') |float(1)))  / 2.0 }}
+          {% else %}
+          {{0.0}}
+          {% endif %}
+        availability: >-
+          {{ (has_value('sensor.deyeinvertermaster_battery_soc') and has_value('sensor.deyeinverterslave_battery_soc')) }}
+        unit_of_measurement: "%"
+        device_class: battery
+
+      - name: "deyeinvertercombined_battery_voltage"
+        state: "{{ (states('sensor.deyeinvertermaster_battery_voltage') |float(1)  + (states('sensor.deyeinverterslave_battery_voltage') |float(1)))  / 2.0 }}"
+        unit_of_measurement: "V"
+        device_class: voltage
+
+      - name: "deyeinvertercombined_summary_day_battery_charge"
+        state: "{{ (states('sensor.deyeinvertermaster_summary_day_battery_charge') |float(0)  + (states('sensor.deyeinverterslave_summary_day_battery_charge') |float(0))) | round(1)}}"
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+
+      - name: "deyeinvertercombined_summary_day_load"
+        state: "{{ (states('sensor.deyeinvertermaster_summary_day_load') |float(0)  + (states('sensor.deyeinverterslave_summary_day_load') |float(0))) | round(1) }}"
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        availability: >-
+          {{ (has_value('sensor.deyeinvertermaster_summary_day_load') and has_value('sensor.deyeinverterslave_summary_day_load')) }}
+
+      - name: "deyeinvertercombined_summary_day_battery_discharge"
+        state: "{{ (states('sensor.deyeinvertermaster_summary_day_battery_discharge') |float(0)  + (states('sensor.deyeinverterslave_summary_day_battery_discharge') |float(0))) | round(1)}}"
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+
+      - name: "deyeinvertercombined_summary_day_pv"
+        state: "{{ (states('sensor.deyeinvertermaster_summary_day_pv') |float(0)  + (states('sensor.deyeinverterslave_summary_day_pv') |float(0))) | round(1)}}"
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        availability: >-
+          {{ (has_value('sensor.deyeinvertermaster_summary_day_pv') and has_value('sensor.deyeinverterslave_summary_day_pv')) }}
+
+      - name: "deyeinvertercombined_summary_day_pv1"
+        state: "{{ (states('sensor.deyeinvertermaster_summary_day_pv1') |float(0)  + (states('sensor.deyeinverterslave_summary_day_pv1') |float(0))) | round(1)}}"
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+
+      - name: "deyeinvertercombined_summary_day_pv2"
+        state: "{{ (states('sensor.deyeinvertermaster_summary_day_pv2') |float(0)  + (states('sensor.deyeinverterslave_summary_day_pv2') |float(0))) | round(1)}}"
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+
+      - name: "deyeinvertercombined_summary_day_pv3"
+        state: "{{ (states('sensor.deyeinvertermaster_summary_day_pv3') |float(0)  + (states('sensor.deyeinverterslave_summary_day_pv3') |float(0))) | round(1)}}"
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+
+      - name: "deyeinvertercombined_summary_day_pv4"
+        state: "{{ (states('sensor.deyeinvertermaster_summary_day_pv4') |float(0)  + (states('sensor.deyeinverterslave_summary_day_pv4') |float(0))) | round(1)}}"
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+
+      - name: "deyeinvertercombined_summary_day_grid_import_buy"
+        state: "{{ (states('sensor.deyeinvertermaster_summary_day_grid_import_buy') |float(0))}}"
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+
+      - name: "deyeinvertercombined_summary_day_grid_import_buy_half"
+        state: "{{ (states('sensor.deyeinvertermaster_summary_day_grid_import_buy') |float(0) / 2.0)}}"
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+
+      - name: "deyeinvertercombined_summary_day_grid_export_sell"
+        state: "{{ (states('sensor.deyeinvertermaster_summary_day_grid_export_sell') |float(0) / 2.0)}}"
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+
+      - name: "deyeinvertercombined_summary_total_pv"
+        state: "{{ (states('sensor.deyeinvertermaster_summary_total_pv') |float(3)  + (states('sensor.deyeinverterslave_summary_total_pv') |float(3))) | round(4)}}"
+        unit_of_measurement: "MWh"
+        device_class: energy
+        state_class: total_increasing
+        availability: >-
+          {{ (has_value('sensor.deyeinvertermaster_summary_total_pv') and has_value('sensor.deyeinverterslave_summary_total_pv')) }}
+
+      - name: "deyeinvertercombined_summary_total_load"
+        state: "{{ (states('sensor.deyeinvertermaster_summary_total_load') |float(3)  + (states('sensor.deyeinverterslave_summary_total_load') |float(3))) | round(4)}}"
+        unit_of_measurement: "MWh"
+        device_class: energy
+        state_class: total_increasing
+
+      - name: "deyeinvertercombined_summary_total_grid_import_buy"
+        state: "{{ (states('sensor.deyeinvertermaster_summary_total_grid_import_buy') |float(3)) | round(4)}}"
+        unit_of_measurement: "MWh"
+        device_class: energy
+        state_class: total_increasing
+
+      - name: "deyeinvertercombined_summary_total_grid_export_sell"
+        state: "{{ (states('sensor.deyeinvertermaster_summary_total_grid_export_sell') |float(3)) | round(4)}}"
+        unit_of_measurement: "MWh"
+        device_class: energy
+        state_class: total_increasing
+
+      - name: "deyeinvertercombined_summary_total_battery_discharge"
+        state: "{{ (states('sensor.deyeinvertermaster_summary_total_battery_discharge') |float(3)  + (states('sensor.deyeinverterslave_summary_total_battery_discharge') |float(3))) | round(4)}}"
+        unit_of_measurement: "MWh"
+        device_class: energy
+        state_class: total_increasing
+
+      - name: "deyeinvertercombined_summary_total_battery_charge"
+        state: "{{ (states('sensor.deyeinvertermaster_summary_total_battery_charge') |float(3)  + (states('sensor.deyeinverterslave_summary_total_battery_charge') |float(3))) | round(4)}}"
+        unit_of_measurement: "MWh"
+        device_class: energy
+        state_class: total_increasing
+
+      - name: "deyeinvertercombined_essential_load"
+        state: "{{ (states('sensor.deyeinvertermaster_essential_load') |float(0) + (states('sensor.deyeinverterslave_essential_load') |float(0))) | round(1)}}"
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+
+      - name: "deyeinvertercombined_grid_load"
+        state: "{{ (states('sensor.deyeinvertermaster_grid_load') |float(0) + (states('sensor.deyeinverterslave_grid_load') |float(0))) | round(1)}}"
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+
+      - name: "deyeinvertercombined_inverter_output_power"
+        state: "{{ (states('sensor.deyeinvertermaster_inverter_output_power') |float(0)  + (states('sensor.deyeinverterslave_inverter_output_power') |float(0))) | round(1)}}"
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+
+      - name: "deyeinvertercombined_battery_output_power"
+        state: "{{ (states('sensor.deyeinvertermaster_battery_output_power') |float(0)  + (states('sensor.deyeinverterslave_battery_output_power') |float(0))) | round(1)}}"
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+
+      - name: "deyeinvertercombined_solar_power_used"
+        state: "{{ (states('sensor.deyeinvertermaster_solar_power_used') |float(0)  + (states('sensor.deyeinverterslave_solar_power_used') |float(0))) | round(1)}}"
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+
+      - name: "deyeinvertercombined_pv_power"
+        state: "{{ (states('sensor.deyeinvertermaster_pv_power') |float(0)  + (states('sensor.deyeinverterslave_pv_power') |float(0))) | round(1)}}"
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        availability: >-
+          {{ (has_value('sensor.deyeinvertermaster_pv_power') and has_value('sensor.deyeinverterslave_pv_power')) }}
+
+      - name: "deyeinvertercombined_pv1_power"
+        state: "{{ (states('sensor.deyeinvertermaster_pv1_power') |float(0)  + (states('sensor.deyeinverterslave_pv1_power') |float(0))) | round(1)}}"
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+
+      - name: "deyeinvertercombined_pv2_power"
+        state: "{{ (states('sensor.deyeinvertermaster_pv2_power') |float(0)  + (states('sensor.deyeinverterslave_pv2_power') |float(0))) | round(1)}}"
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+
+      - name: "deyeinvertercombined_pv3_power"
+        state: "{{ (states('sensor.deyeinvertermaster_pv3_power') |float(0)  + (states('sensor.deyeinverterslave_pv3_power') |float(0))) | round(1)}}"
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+
+      - name: "deyeinvertercombined_pv4_power"
+        state: "{{ (states('sensor.deyeinvertermaster_pv4_power') |float(0)  + (states('sensor.deyeinverterslave_pv4_power') |float(0))) | round(1)}}"
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+
+      - name: "deyeinvertercombined_grid_power_ct_clamp"
+        state: "{{ states('sensor.deyeinvertermaster_grid_power_ct_clamp') |float(0) + states('sensor.deyeinverterslave_grid_power_ct_clamp') |float(1) }}"
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+
+      - name: "deyeinvertercombined_battery_output_current"
+        state: "{{ (states('sensor.deyeinvertermaster_battery_output_current') |float(0)  + (states('sensor.deyeinverterslave_battery_output_current') |float(0))) | round(1)}}"
+        unit_of_measurement: "A"
+        device_class: current
+        state_class: measurement
+
+      - name: "deyeinvertercombined_non_essential_load"
+        state: "{{ (states('sensor.deyeinvertermaster_non_essential_load') |float(0)  - (states('sensor.deyeinverterslave_non_essential_load') |float(0))) | round(1)}}"
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+
+      - name: deyeinvertercombined_battery_charge_grid_power
+        unit_of_measurement: "kW"
+        state_class: measurement
+        device_class: power
+        state: >-
+          {% if states('sensor.deyeinvertercombined_inverter_output_power')|float < 0.0 %}
+          {{ (states('sensor.deyeinvertercombined_battery_output_power') | float(4) | abs ) * 0.001  }}
+          {% else %}
+          0.0
+          {% endif %}          
+#------------------------------------------------------------------------------
+sensor:
+  - platform: integration
+    name: deyeinvertermaster_summary_total_battery_charge_grid
+    source: sensor.deyeinvertermaster_battery_charge_grid_power
+    method: left
+
+  - platform: integration
+    name: deyeinverterslave_summary_total_battery_charge_grid
+    source: sensor.deyeinverterslave_battery_charge_grid_power
+    method: left
+
+  #For timezone issues the entities below should follow the HA server
+  - platform: integration
+    name: deyeinvertermaster_summary_total_pv1_fix
+    source: sensor.deyeinvertermaster_pv1_power
+    method: left
+    unit_prefix: k
+
+  - platform: integration
+    name: deyeinvertermaster_summary_total_pv2_fix
+    source: sensor.deyeinvertermaster_pv2_power
+    method: left
+    unit_prefix: k
+
+  - platform: integration
+    name: deyeinvertermaster_summary_total_pv3_fix
+    source: sensor.deyeinvertermaster_pv3_power
+    method: left
+    unit_prefix: k
+
+  - platform: integration
+    name: deyeinvertermaster_summary_total_pv4_fix
+    source: sensor.deyeinvertermaster_pv4_power
+    method: left
+    unit_prefix: k
+#------------------------------------------------------------------------------
+utility_meter:
+  master_energy_battery_charge_grid:
+    unique_id: "1754346329929"
+    name: deyeinvertermaster_summary_day_battery_charge_grid
+    source: sensor.deyeinvertermaster_summary_total_battery_charge_grid
+    cycle: daily
+# Below 3 lines id not part of the original Sunsynk Data    
+#   tariffs:
+#      - peak
+#      - off_peak
+
+  slave_energy_battery_charge_grid:
+    unique_id: "1754346329938"
+    name: deyeinverterslave_summary_day_battery_charge_grid
+    source: sensor.deyeinverterslave_summary_total_battery_charge_grid
+    cycle: daily
+# Below 3 lines id not part of the original Sunsynk Data    
+#   tariffs:
+#      - peak
+#      - off_peak
+#-------------------------------------------------------------------------------
+
+  master_pv1_fix:
+    unique_id: "1754346329947"
+    name: deyeinvertermaster_summary_day_pv1_fix
+    source: sensor.deyeinvertermaster_summary_total_pv1_fix
+    cycle: daily
+
+  master_pv2_fix:
+    unique_id: "1754346329956"
+    name: deyeinvertermaster_summary_day_pv2_fix
+    source: sensor.deyeinvertermaster_summary_total_pv2_fix
+    cycle: daily
+
+  master_pv3_fix:
+    unique_id: "1754346329958"
+    name: deyeinvertermaster_summary_day_pv3_fix
+    source: sensor.deyeinvertermaster_summary_total_pv3_fix
+    cycle: daily
+
+  master_pv4_fix:
+    unique_id: "1754346329956"
+    name: deyeinvertermaster_summary_day_pv4_fix
+    source: sensor.deyeinvertermaster_summary_total_pv4_fix
+    cycle: daily
+
+
+    
+
+# Opened Files
+## File Name
+automations.yaml
+## File Content
+#===============================================================================
+# Automations Configuration - SYNTAX FIXED
+# File: automations.yaml
+# Updated: 2025-08-23 09:00
+# Fixed: YAML syntax errors and incomplete automation definitions
+#===============================================================================
+
+# Prepaid meter recharge automation (FIXED)
+- id: '1717429630744'
+  alias: 'Prepaid: Meter Recharge at 09:00'
+  description: 'Update prepaid meter reading when units are recharged'
+  trigger:
+    - platform: time
+      at: '09:00:00'
+    - platform: state
+      entity_id: input_number.prepaid_meter_units
+  condition:
+    - condition: template
+      value_template: '{{ states("input_number.prepaid_meter_units") | float(0) > 0 }}'
+  action:
+    - service: input_number.set_value
+      data:
+        value: '{{ ((states("sensor.deyeinvertermaster_summary_total_grid_import_buy") | float(0)) * 1000.0) }}'
+      target:
+        entity_id: input_number.prepaid_meter_inverter_total_units
+    - service: notify.telegram
+      data:
+        title: "⚡ Prepaid Meter Recharged"
+        message: >
+          Units added: {{ states('input_number.prepaid_meter_units') }} kWh
+          New reading: {{ states('input_number.prepaid_meter_inverter_total_units') }}
+          Units remaining: {{ states('sensor.prepaid_units_left') }} kWh
+          Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+  mode: single
+
+# Solar inverter optimization automation (COMPLETED)
+- id: '1686299812078'
+  alias: 'Solar: Switch Export Mode at 09:00 and Sunset/Sunrise'
+  description: 'Control export mode based on solar conditions'
+  trigger:
+    - platform: time
+      at: '09:00:00'
+    - platform: sun
+      event: sunrise
+      offset: '+00:30:00'
+    - platform: sun
+      event: sunset
+      offset: '-00:30:00'
+  condition:
+    - condition: template
+      value_template: '{{ states("switch.grid_export_mode") not in ["unavailable", "unknown"] }}'
+  action:
+    - choose:
+        # Enable export during daylight hours
+        - conditions:
+            - condition: sun
+              after: sunrise
+              before: sunset
+          sequence:
+            - service: switch.turn_on
+              target:
+                entity_id: switch.grid_export_mode
+            - service: notify.telegram
+              data:
+                title: "☀️ Solar Export Enabled"
+                message: >
+                  Export mode activated for solar generation.
+                  Time: {{ now().strftime('%H:%M') }}
+                  Trigger: {{ trigger.platform }}
+      
+        # Disable export after sunset  
+        - conditions:
+            - condition: sun
+              after: sunset
+          sequence:
+            - service: switch.turn_off
+              target:
+                entity_id: switch.grid_export_mode
+            - service: notify.telegram
+              data:
+                title: "🌙 Solar Export Disabled"
+                message: >
+                  Export mode deactivated after sunset.
+                  Time: {{ now().strftime('%H:%M') }}
+      
+      # Default action - status report
+      default:
+        - service: notify.telegram
+          data:
+            title: "🔄 Solar Export Status"
+            message: >
+              Current export mode: {{ states('switch.grid_export_mode') }}
+              Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+  mode: single
+
+# Daily system health check (NEW)
+- id: 'daily_system_health'
+  alias: 'System: Daily Health Check at 09:00'
+  description: 'Daily system health monitoring and reporting'
+  trigger:
+    - platform: time
+      at: '09:00:00'
+  action:
+    - service: notify.telegram
+      data:
+        title: "🏠 Daily System Health Report"
+        message: >
+          **System Status - {{ now().strftime('%Y-%m-%d %H:%M') }}**
+          
+          📊 **Automation Health:**
+          • Total automations: {{ states.automation | list | length }}
+          • Active automations: {{ states.automation | selectattr('state', 'eq', 'on') | list | length }}
+          
+          ⚡ **Power System Status:**
+          {% if states('sensor.deyeinvertermaster_summary_total_grid_import_buy') not in ['unavailable', 'unknown'] %}
+          • Grid import sensor: ✅ Active ({{ states('sensor.deyeinvertermaster_summary_total_grid_import_buy') }})
+          {% else %}
+          • Grid import sensor: ❌ Unavailable
+          {% endif %}
+          
+          {% if states('input_number.prepaid_meter_units') not in ['unavailable', 'unknown'] %}
+          • Prepaid meter: ✅ Active ({{ states('input_number.prepaid_meter_units') }} units)
+          {% else %}
+          • Prepaid meter: ❌ Unavailable
+          {% endif %}
+          
+          {% if states('switch.grid_export_mode') not in ['unavailable', 'unknown'] %}
+          • Export mode: ✅ Active ({{ states('switch.grid_export_mode') }})
+          {% else %}
+          • Export mode: ❌ Unavailable
+          {% endif %}
+          
+          🌡️ **Weather:** {{ states('weather.forecast_home') | default('Unknown') }}
+          
+          **Next report:** Tomorrow at 09:00
+  mode: single
+
+# Basic connectivity test (NEW)
+- id: 'connectivity_test'
+  alias: 'System: Basic Connectivity Test at 09:00'
+  description: 'Test basic system connectivity and entity availability'
+  trigger:
+    - platform: time
+      at: '09:00:00'
+  action:
+    - service: notify.telegram
+      data:
+        title: "🔗 System Connectivity Test"
+        message: >
+          **Connectivity Test Results - {{ now().strftime('%H:%M') }}**
+          
+          **Core Entities:**
+          {% set test_entities = [
+            'input_number.prepaid_meter_units',
+            'sensor.deyeinvertermaster_summary_total_grid_import_buy',
+            'switch.grid_export_mode'
+          ] %}
+          {% for entity in test_entities %}
+          {% if states(entity) not in ['unavailable', 'unknown'] %}
+          • {{ entity }}: ✅ ({{ states(entity) }})
+          {% else %}
+          • {{ entity }}: ❌ UNAVAILABLE
+          {% endif %}
+          {% endfor %}
+          
+          **Integration Status:**
+          • Home Assistant: ✅ Online
+          • Telegram Bot: ✅ Connected (you're reading this!)
+          • Configuration: ✅ Valid (automations running)
+          
+          **System Info:**
+          • Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+          • Uptime: {{ states('sensor.uptime') | default('Unknown') }}
+  mode: single
+
+# Emergency system status (NEW)
+- id: 'emergency_system_check'
+  alias: 'System: Emergency Status Check'
+  description: 'Emergency check when critical entities become unavailable'
+  trigger:
+    - platform: state
+      entity_id: 
+        - sensor.deyeinvertermaster_summary_total_grid_import_buy
+        - input_number.prepaid_meter_units
+        - switch.grid_export_mode
+      to: 'unavailable'
+      for: '00:05:00'
+  action:
+    - service: notify.telegram
+      data:
+        title: "⚠️ Critical Entity Unavailable"
+        message: >
+          **ALERT: Critical entity has become unavailable**
+          
+          **Failed Entity:** {{ trigger.entity_id }}
+          **Previous State:** {{ trigger.from_state.state if trigger.from_state else 'Unknown' }}
+          **Duration:** 5+ minutes
+          
+          **Recommended Actions:**
+          1. Check device connectivity
+          2. Review integration status  
+          3. Restart Home Assistant if needed
+          4. Check network connectivity
+          
+          **Quick Checks:**
+          • Go to Settings > Devices & Services
+          • Look for integration errors
+          • Check device power/network status
+          
+          Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+    - service: persistent_notification.create
+      data:
+        title: "Critical Entity Alert"
+        message: >
+          {{ trigger.entity_id }} became unavailable.
+          Check integration status immediately.
+        notification_id: "critical_entity_{{ trigger.entity_id | replace('.', '_') }}"
+  mode: parallel
+  max: 5

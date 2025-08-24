@@ -7,19 +7,25 @@
 
 # Integration Sensors (moved from configuration.yaml)
 sensor:
+#===============================================================================  
+  # Sunsynk Sensors added https://github.com/tomatensaus/DeyeSolarDesktop/blob/main/configuration.yaml
+#===============================================================================
   - platform: integration
     name: deyeinvertermaster_summary_total_battery_charge_grid
     source: sensor.deyeinvertermaster_battery_charge_grid_power
     method: left
-    unit_prefix: k
-    round: 2
+# Below 2 lines id not part of the original Sunsynk Data    
+#    unit_prefix: k
+#    round: 2
 
   - platform: integration
     name: deyeinverterslave_summary_total_battery_charge_grid
     source: sensor.deyeinverterslave_battery_charge_grid_power
     method: left
-    unit_prefix: k
-    round: 2
+# Below 3 lines id not part of the original Sunsynk Data    
+#    unit_prefix: k
+#    round: 2
+    #***************************************************************************
 
   # Additional integration sensors for better tracking
   - platform: integration
@@ -49,25 +55,11 @@ sensor:
     method: left
     unit_prefix: k
     round: 2
-
+#===============================================================================  
+  # Sunsynk Utility Meters added https://github.com/tomatensaus/DeyeSolarDesktop/blob/main/configuration.yaml
+#===============================================================================
 # Utility Meters (moved from configuration.yaml)
 utility_meter:
-  master_energy_battery_charge_grid:
-    name: deyeinvertermaster_summary_day_battery_charge_grid
-    source: sensor.deyeinvertermaster_summary_total_battery_charge_grid
-    cycle: daily
-    tariffs:
-      - peak
-      - off_peak
-
-  slave_energy_battery_charge_grid:
-    name: deyeinverterslave_summary_day_battery_charge_grid
-    source: sensor.deyeinverterslave_summary_total_battery_charge_grid
-    cycle: daily
-    tariffs:
-      - peak
-      - off_peak
-
   # Additional utility meters for comprehensive tracking
   master_energy_pv_generation:
     name: deyeinvertermaster_summary_day_pv_generation

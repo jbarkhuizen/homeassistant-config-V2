@@ -1,0 +1,12 @@
+#===============================================================================
+# The sensor below keeps the minimum soc of the battery for the last 12 hours,
+#conly removed from DeyeSolarDesktop, not important
+#===============================================================================
+ sensor:
+   - platform: statistics
+     name: "min_soc_battery"
+     entity_id: sensor.deyeinverter_battery_soc
+     state_characteristic: value_min
+     max_age:
+       hours: 12
+     sampling_size: 144
